@@ -56,7 +56,7 @@ pre { font-family: "DejaVu Sans Mono", monospace; font-size: 8.6pt; background: 
   <h1>ระบบทีมตัดต่อคลิปสั้น<br><span>Same footage → Different level</span></h1>
   <div class="bar"></div>
   <p class="lead">คู่มือสรุประบบ: เปลี่ยนคลิปดิบแนวตั้งให้เป็นคลิป TikTok / Reels ระดับมืออาชีพ ครบทั้งการตัด ข้อความ อนิเมชัน ภาพประกอบ เสียง และเพลง พร้อมโพสต์</p>
-  <div class="meta">เวอร์ชันระบบ 1.0 · โฟลเดอร์ <span class="mono">video-toolkit/</span> ใน repo hello-world (branch claude/thai-vertical-video-edit-pyav26)</div>
+  <div class="meta">เวอร์ชันระบบ 2.0 · ทีม 10 บทบาท · 8 Skills · โฟลเดอร์ <span class="mono">video-toolkit/</span> ใน repo hello-world (branch claude/thai-vertical-video-edit-pyav26)</div>
 </div>
 
 <section>
@@ -68,28 +68,46 @@ pre { font-family: "DejaVu Sans Mono", monospace; font-size: 8.6pt; background: 
     <div class="card"><div class="ic">🎨</div><div class="t">ข้อความ + อนิเมชัน</div>ฟอนต์ Kanit โทนฟ้า น้ำเงิน ชมพู มีอนิเมชัน pop, slide, wipe, typewriter และ progress bar</div>
     <div class="card"><div class="ic">🖼️</div><div class="t">ภาพประกอบเคลื่อนไหว</div>การ์ดอธิบายที่วาดขึ้นเอง เช่น แก้วน้ำค่อย ๆ เต็ม, กราฟ, เกจความดัน, อาหารเด้งเข้า, ไอคอนลอย</div>
     <div class="card"><div class="ic">🔊</div><div class="t">เสียง + เพลง</div>เอฟเฟกต์เสียง CC0 + เสียงที่สร้างขึ้นเอง, เพลงต้นฉบับไม่ติดลิขสิทธิ์, เพลงเบาลงเองเวลามีคนพูด, มาสเตอร์ที่ -14 LUFS</div>
-    <div class="card"><div class="ic">📦</div><div class="t">ส่งมอบครบชุด</div>MP4 1080x1920, ภาพปก, แคปชั่น + แฮชแท็ก, การ์ด PNG, ชุดเอฟเฟกต์เสียง + cue sheet</div>
+    <div class="card"><div class="ic">📦</div><div class="t">ส่งมอบครบชุด + ค้นคว้า</div>MP4 1080x1920, ภาพปก, แคปชั่น + แฮชแท็ก, การ์ด PNG, ชุดเอฟเฟกต์เสียง + cue sheet</div>
   </div>
 </section>
 
-<section>
-  <h2><span class="n">2</span>ทีมบทบาทที่ทำงานร่วมกัน</h2>
+<section class="page">
+  <h2><span class="n">2</span>ทีม 10 บทบาท (Agents)</h2>
+  <p>แต่ละบทบาทเป็นไฟล์ agent ใน <span class="mono">.claude/agents/</span> ซึ่ง Claude Code โหลดให้อัตโนมัติ หัวหน้าทีมเป็นคนมอบงาน แต่ละบทบาทใช้ Skill ของตัวเอง</p>
   <table>
-    <tr><th style="width:30%">บทบาท</th><th>หน้าที่ในระบบ</th></tr>
-    <tr><td class="b">Video Editor</td><td>วางจุดตัด จังหวะ ความยาว 35–55 วินาที และซ่อน jump cut</td></tr>
-    <tr><td class="b">Script &amp; Hook Specialist</td><td>ทำให้ 3 วินาทีแรกแรง เขียนพาดหัว ข้อความสั้น และ CTA</td></tr>
-    <tr><td class="b">Visual Director</td><td>จัดเฟรม ไม่ให้กราฟิกบังหน้าหรือท่าทางเด่น และเลือกสไตล์ภาพ</td></tr>
-    <tr><td class="b">Motion Designer</td><td>อนิเมชันข้อความ การ์ด ไอคอน และ easing ที่ดูพรีเมียม</td></tr>
-    <tr><td class="b">Sound Designer</td><td>วางเอฟเฟกต์เสียงตรงกับภาพ และกำหนดระดับเทียบเสียงพูด (-6 ถึง -16 dB)</td></tr>
-    <tr><td class="b">Music Director</td><td>อารมณ์ จังหวะ ducking และจุดที่เพลงดังขึ้น เบาลง หรือเงียบ</td></tr>
-    <tr><td class="b">B-roll &amp; Image Researcher</td><td>คำค้นไทยและอังกฤษ ภาพนิ่งหรือคลิป และเหตุผลว่าช่วยให้เข้าใจอย่างไร</td></tr>
-    <tr><td class="b">CapCut / FFmpeg Specialist</td><td>ขั้นตอนใน CapCut และ pipeline FFmpeg สำหรับ render จริง</td></tr>
-    <tr><td class="b">System Setup &amp; Docs</td><td>ติดตั้งและตรวจระบบ ดูแลไฟล์ และทำคู่มือ (รวมถึง PDF นี้)</td></tr>
+    <tr><th style="width:27%">บทบาท (ไฟล์)</th><th>หน้าที่</th><th style="width:27%">Skill ที่ใช้</th></tr>
+    <tr><td class="b">Video Editor<br><span class="mono">video-editor</span></td><td>จุดตัด จังหวะ ความยาว 35–55 วินาที ซ่อน jump cut และเขียน timeline.py</td><td>video-clip-analysis, capcut-ffmpeg-workflow</td></tr>
+    <tr><td class="b">Hook &amp; Script<br><span class="mono">hook-script</span></td><td>Hook ใน 3 วินาทีแรก พาดหัว ข้อความสั้น CTA และแคปชั่น + แฮชแท็ก</td><td>onscreen-text-animation</td></tr>
+    <tr><td class="b">Visual Director<br><span class="mono">visual-director</span></td><td>จัดเฟรม จุดซูม ปรับสี ตรวจ safe zone และตรวจว่ากราฟิกไม่บังหน้า</td><td>broll-image-research</td></tr>
+    <tr><td class="b">Motion Designer<br><span class="mono">motion-designer</span></td><td>อนิเมชันข้อความ การ์ดอธิบาย ไอคอน และ progress bar</td><td>onscreen-text-animation, broll-image-research</td></tr>
+    <tr><td class="b">Sound Designer<br><span class="mono">sound-designer</span></td><td>วางเอฟเฟกต์เสียงตามจังหวะภาพ กำหนด dB เทียบเสียงพูด ทำ cue sheet และปรับเสียงพูด</td><td>sound-design</td></tr>
+    <tr><td class="b">Music Director<br><span class="mono">music-director</span></td><td>อารมณ์ จังหวะ ducking และจุด drop / เงียบ / fade รวมถึงสร้างเพลงต้นฉบับ</td><td>music-direction</td></tr>
+    <tr><td class="b">B-roll Researcher<br><span class="mono">broll-researcher</span></td><td>จุดแทรกภาพ คำค้นไทยและอังกฤษ เหตุผล สไตล์ภาพ และการ์ดที่วาดแทน</td><td>broll-image-research</td></tr>
+    <tr><td class="b">CapCut / FFmpeg<br><span class="mono">capcut-ffmpeg</span></td><td>ขั้นตอน CapCut ทีละขั้น, render และตรวจไฟล์สุดท้าย</td><td>capcut-ffmpeg-workflow</td></tr>
+    <tr><td class="b">Research &amp; Trend<br><span class="mono">research-trend</span></td><td>ค้นคว้าเทรนด์และสเปกแพลตฟอร์ม พร้อมบันทึกแหล่งที่มา</td><td>trend-research</td></tr>
+    <tr><td class="b">Skill Builder<br><span class="mono">skill-builder</span></td><td>สร้างและปรับปรุง Skill, CLAUDE.md และ PDF จากบทเรียนในงานจริง</td><td>system-docs-pdf</td></tr>
   </table>
 </section>
 
 <section class="page">
-  <h2><span class="n">3</span>สิ่งที่ต้องมี / สิ่งที่เตรียมไว้แล้ว</h2>
+  <h2><span class="n">3</span>Skills ที่ลงทะเบียนแล้ว (8 สกิล)</h2>
+  <p>อยู่ใน <span class="mono">.claude/skills/&lt;ชื่อ&gt;/SKILL.md</span> และ Claude Code โหลดเองเมื่อเปิดเซสชันใน repo นี้ แต่ละสกิลมีค่าตัวเลข คำสั่ง และกติกาที่นำไปใช้ได้ทันที</p>
+  <div class="grid">
+    <div class="card"><div class="t">🎬 video-clip-analysis</div>รับคลิป (ยืนยันชื่อไฟล์และ SHA-256), ถอดเสียง, หาช่วงเงียบ, วัดค่า, ดูท่าทาง แล้วทำแผน 12 หัวข้อ รวมถึงกติกาการตัดและการตรวจคุณภาพ</div>
+    <div class="card"><div class="t">✍️ onscreen-text-animation</div>จานสี (HEX + รหัส ASS), ขนาดและตำแหน่งใน safe zone, สูตรอนิเมชัน CapCut และ ASS (pop, typewriter, wipe, pulse)</div>
+    <div class="card"><div class="t">🖼️ broll-image-research</div>จุดแทรกหลังท่าเด่น, คำค้น 2 ภาษา, สไตล์ภาพ, กรอบการ์ด, การ์ดที่วาดเอง 6 แบบ</div>
+    <div class="card"><div class="t">🔊 sound-design</div>คลัง uisfx 12 แนว, ตารางบทบาทของเสียง, ระดับ dB, จังหวะวาง, ชุดคำสั่งปรับเสียงพูด และ cue sheet</div>
+    <div class="card"><div class="t">🎵 music-direction</div>ตารางเลือกอารมณ์และ BPM ตามเนื้อหา, ระดับเสียง + ducking, ไดนามิกตามโครงสร้าง, เพลงต้นฉบับ</div>
+    <div class="card"><div class="t">🛠️ capcut-ffmpeg-workflow</div>CapCut 13 ขั้น + pipeline FFmpeg + การตรวจคุณภาพ + ปัญหาที่พบบ่อย</div>
+    <div class="card"><div class="t">📄 system-docs-pdf</div>แปลง HTML เป็น PDF ด้วยฟอนต์ Kanit, กติกาการจัดหน้า และการตรวจภาพทุกหน้า</div>
+    <div class="card"><div class="t">🔎 trend-research</div>วิธีค้นและให้น้ำหนักแหล่ง, บันทึกผลพร้อมวันที่และ URL (<span class="mono">references/trends-2026-11.md</span>)</div>
+  </div>
+  <div class="note"><b class="b">กติกาประจำ repo</b> อยู่ใน <span class="mono">CLAUDE.md</span> (โหลดทุกเซสชัน) ได้แก่ ลำดับบังคับ (เตรียมระบบ → ยืนยันไฟล์ → ห้ามใช้ข้อมูลคลิปเก่า), มาตรฐาน และแผนผังว่าบทบาทไหนใช้สกิลไหน</div>
+</section>
+
+<section class="page">
+  <h2><span class="n">4</span>สิ่งที่ต้องมี / สิ่งที่เตรียมไว้แล้ว</h2>
   <table>
     <tr><th style="width:34%">ส่วนประกอบ</th><th style="width:16%">สถานะ</th><th>รายละเอียด</th></tr>
     <tr><td>FFmpeg 6.1 (libass, harfbuzz, x264)</td><td class="ok">✅ พร้อม</td><td>ตัดต่อ ใส่ข้อความไทย ซูม ปรับสี มิกซ์เสียง</td></tr>
@@ -100,6 +118,8 @@ pre { font-family: "DejaVu Sans Mono", monospace; font-size: 8.6pt; background: 
     <tr><td>Noto Color Emoji</td><td class="ok">✅ พร้อม</td><td>ไอคอนและภาพในการ์ด</td></tr>
     <tr><td>เอฟเฟกต์เสียง uisfx (CC0)</td><td class="ok">✅ พร้อม</td><td>12 แนว × 78 เสียง ใช้เชิงพาณิชย์ได้</td></tr>
     <tr><td>Chromium + Playwright</td><td class="ok">✅ พร้อม</td><td>ใช้ทำไฟล์ PDF</td></tr>
+    <tr><td>Skills 8 ตัว + Agents 10 ตัว + CLAUDE.md</td><td class="ok">✅ พร้อม</td><td>อยู่ใน <span class="mono">.claude/</span> ของ repo และโหลดอัตโนมัติ</td></tr>
+    <tr><td>WebSearch / WebFetch</td><td class="ok">✅ พร้อม</td><td>ใช้ค้นคว้าเทรนด์และสเปก (ทดสอบแล้ว)</td></tr>
     <tr><td>เว็บ Stock (Pexels, Pixabay, Mixkit, Freesound)</td><td class="warn">⚠️ ถูกบล็อก</td><td>ใช้ภาพประกอบที่วาดขึ้นเองแทน หรือส่งไฟล์ B-roll มาให้</td></tr>
   </table>
   <h3>ติดตั้ง / ตรวจระบบ (ใช้เวลาประมาณ 15 วินาที)</h3>
@@ -119,17 +139,34 @@ pre { font-family: "DejaVu Sans Mono", monospace; font-size: 8.6pt; background: 
 </section>
 
 <section class="page">
-  <h2><span class="n">4</span>มาตรฐานคุณภาพคลิป</h2>
+  <h2><span class="n">5</span>วิธีค้นคว้า (Research &amp; Trend)</h2>
+  <ol>
+    <li>ใช้ WebSearch แบบ standard ก่อน และค้นหลายคำถามพร้อมกัน (เทรนด์ + สเปก + เสียง)</li>
+    <li>ให้น้ำหนักแหล่ง: เอกสารทางการ &gt; ข้อมูลจำนวนมาก/งานวิจัย &gt; บล็อกของผู้ขายเครื่องมือ</li>
+    <li>ถ้าตัวเลขจากแหล่งต่าง ๆ ขัดกัน ให้ใช้ค่าอนุรักษ์นิยมและระบุช่วงค่า</li>
+    <li>บันทึกผลพร้อมวันที่และ URL ลงไฟล์ references แล้วให้ Skill Builder อัปเดตสกิลถ้ามาตรฐานเปลี่ยน</li>
+  </ol>
+  <h3>ผลค้นคว้าล่าสุด (14 พ.ย. 2026)</h3>
+  <table>
+    <tr><th style="width:22%">เรื่อง</th><th>ข้อค้นพบ</th><th style="width:30%">ผลต่อมาตรฐานทีม</th></tr>
+    <tr><td class="b">Hook / Retention</td><td>retention เป็นสัญญาณหลักของอัลกอริทึม คนดูตัดสินใจภายในประมาณ 2 วินาที และการทิ้งประเด็นค้างไว้ (open loop) ช่วยให้ดูต่อ</td><td>ข้อความ Hook ขึ้น ≤0.3 วินาที, ใช้ progress bar และเกริ่นตอนต่อไป</td></tr>
+    <tr><td class="b">แคปชั่น</td><td>คำพูด ข้อความบนจอ และแคปชั่นควรตรงกัน ใช้แคปชั่นอัตโนมัติร่วมด้วย</td><td>ข้อความบนจอใช้คำเดียวกับที่พูด</td></tr>
+    <tr><td class="b">Safe zone</td><td>ไม่มีสเปกทางการ แหล่งต่าง ๆ ระบุพื้นที่ที่ถูกบังไว้ที่ บน 108–154px, ล่าง 250–480px, ขวาประมาณ 150px</td><td><b class="b">บน 130 · ล่าง y≤1440 · ขวา x≤930</b> การ์ดอยู่ในช่วง y 1000–1420</td></tr>
+    <tr><td class="b">Loudness</td><td>ค่าที่ใช้กันมากคือ -14 LUFS / -1 dBTP (บางแหล่ง -13 หรือ -16) และเพลงเบากว่าเสียงพูด 12–18 dB</td><td>คงไว้ที่ -14 LUFS, peak ≤ -1.5, เพลงเบากว่าเสียงพูด 17–20 dB + ducking</td></tr>
+  </table>
+</section>
+<section class="page">
+  <h2><span class="n">6</span>มาตรฐานคุณภาพคลิป</h2>
   <div class="grid">
     <div class="card"><div class="t">⚡ จังหวะ</div><ul><li>Hook แรงใน 3 วินาทีแรก (ข้อความขึ้นภายใน 0.3 วินาที)</li><li>ตัดช่วงเงียบที่ยาวเกิน 0.2–0.3 วินาที</li><li>ตัดคำที่พูดผิด พูดซ้ำ หรือไม่จำเป็น</li><li>ความยาว 35–55 วินาที</li></ul></div>
-    <div class="card"><div class="t">🎨 ภาพและข้อความ</div><ul><li>โทนสี <span class="swatch" style="background:#7DD3FC"></span>ฟ้าอ่อน → <span class="swatch" style="background:#1E46B8"></span>น้ำเงิน → <span class="swatch" style="background:#F9A8D4"></span>ชมพูอ่อน</li><li>มีภาพประกอบในประเด็นสำคัญ</li><li>มีอนิเมชันที่ช่วยเน้นประเด็น ใช้เวลาเข้าไม่เกิน 0.3 วินาที</li><li>กราฟิกไม่บังหน้า ท่าทางเด่น หรือ UI ของ TikTok</li></ul></div>
+    <div class="card"><div class="t">🎨 ภาพและข้อความ</div><ul><li>โทนสี <span class="swatch" style="background:#7DD3FC"></span>ฟ้าอ่อน → <span class="swatch" style="background:#1E46B8"></span>น้ำเงิน → <span class="swatch" style="background:#F9A8D4"></span>ชมพูอ่อน</li><li>มีภาพประกอบในประเด็นสำคัญ</li><li>มีอนิเมชันที่ช่วยเน้นประเด็น ใช้เวลาเข้าไม่เกิน 0.3 วินาที</li><li>กราฟิกไม่บังหน้า ท่าทางเด่น หรือ UI ของ TikTok (safe zone: บน 130, ล่าง y≤1440, ขวา x≤930)</li></ul></div>
     <div class="card"><div class="t">🔊 เสียง</div><ul><li>เสียงพูดชัด: ลดเสียงรบกวน, EQ, ลดเสียง "ซ", คอมเพรส</li><li>เพลงเบากว่าเสียงพูด 17–20 dB และเบาลงเองเวลามีคนพูด</li><li>มาสเตอร์ -14 LUFS / peak ≤ -1.5 dBFS</li></ul></div>
     <div class="card"><div class="t">✅ ส่งมอบ</div><ul><li>MP4 1080x1920 30fps H.264 + AAC</li><li>ภาพปก แคปชั่น และแฮชแท็ก</li><li>สื่อทั้งหมดไม่ติดลิขสิทธิ์ (CC0 / สร้างขึ้นเอง / OFL)</li><li>คลิปสุขภาพต้องมีคำเตือนทางการแพทย์</li></ul></div>
   </div>
 </section>
 
 <section class="page">
-  <h2><span class="n">5</span>ขั้นตอนการทำงานทั้งหมด</h2>
+  <h2><span class="n">7</span>ขั้นตอนการทำงานทั้งหมด</h2>
   <div class="flow"><span>0 ตรวจระบบ</span><i>→</i><span>1 รับคลิป + ยืนยันไฟล์</span><i>→</i><span>2 วิเคราะห์</span><i>→</i><span>3 วางแผน 11 หัวข้อ</span><i>→</i><span>4 Render</span><i>→</i><span>5 ตรวจคุณภาพ</span><i>→</i><span>6 ส่งมอบ</span></div>
   <table>
     <tr><th style="width:24%">ขั้น</th><th>สิ่งที่ทำ</th><th style="width:28%">ผลลัพธ์</th></tr>
@@ -145,7 +182,7 @@ pre { font-family: "DejaVu Sans Mono", monospace; font-size: 8.6pt; background: 
 </section>
 
 <section>
-  <h2><span class="n">6</span>รูปแบบการตอบกลับ (11 หัวข้อ + ส่วนที่ 12)</h2>
+  <h2><span class="n">8</span>รูปแบบการตอบกลับ 12 หัวข้อ</h2>
   <div class="grid">
     <table>
       <tr><th style="width:12%">#</th><th>หัวข้อ</th></tr>
@@ -163,13 +200,13 @@ pre { font-family: "DejaVu Sans Mono", monospace; font-size: 8.6pt; background: 
       <tr><td>9</td><td>แนวทางเพลง (อารมณ์ จังหวะ ระดับความดัง ไดนามิก)</td></tr>
       <tr><td>10</td><td>การปรับภาพและโทนสี (ค่าตัวเลข)</td></tr>
       <tr><td>11</td><td>ขั้นตอนใน CapCut ทีละขั้น</td></tr>
-      <tr><td>12</td><td><i>(ถ้ามี)</i> ไฟล์ที่ส่งมอบ + ข้อจำกัดที่ต้องรู้</td></tr>
+      <tr><td>12</td><td>ข้อเสนอเพิ่มเติมจากการค้นคว้า (+ ไฟล์ที่ส่งมอบ / ข้อจำกัด)</td></tr>
     </table>
   </div>
 </section>
 
 <section>
-  <h2><span class="n">7</span>วิธีใช้งานจริงแบบสั้น ๆ</h2>
+  <h2><span class="n">9</span>วิธีใช้งานจริงแบบสั้น ๆ</h2>
   <ol>
     <li><b class="b">เปิดเซสชันใหม่:</b> พิมพ์ "ตรวจสอบและเตรียมระบบ" แล้วผมจะรัน <span class="mono">setup.sh</span> + <span class="mono">check_system.sh</span> ให้</li>
     <li><b class="b">แนบคลิป</b> (MP4 แนวตั้ง) พร้อมคำสั่ง เช่น<br><i>"นี่คือคลิปใหม่ ชื่อ ___ วิเคราะห์ 11 หัวข้อ แล้วตัดเป็นไฟล์ เน้นภาพประกอบและอนิเมชัน"</i></li>
@@ -190,7 +227,7 @@ pre { font-family: "DejaVu Sans Mono", monospace; font-size: 8.6pt; background: 
 </section>
 
 <section class="page">
-  <h2><span class="n">8</span>เคล็ดลับสำคัญ</h2>
+  <h2><span class="n">10</span>เคล็ดลับสำคัญ</h2>
   <div class="tip"><b class="b">🔒 บังคับให้ใช้คลิปใหม่:</b> เขียนในข้อความว่า <i>"นี่คือคลิปใหม่ ชื่อไฟล์ ___ ห้ามใช้ข้อมูลจากคลิปก่อนหน้า"</i> ระบบจะตรวจ SHA-256 ทุกครั้ง ถ้าไฟล์ซ้ำกับที่เคยส่งมาจะแจ้งทันที ป้องกันการแนบผิดไฟล์ (ชื่อไฟล์ที่ลงท้ายเหมือนกันไม่ได้แปลว่าเป็นคลิปเดียวกัน ระบบเทียบจากเนื้อไฟล์)</div>
   <div class="tip"><b class="b">💾 เซสชันคลาวด์ถูกล้างได้:</b> เครื่องมืออยู่ใน repo (<span class="mono">video-toolkit/</span>) และติดตั้งใหม่ได้ด้วย <span class="mono">./setup.sh</span> ภายในไม่กี่วินาที ส่วนวิดีโอที่ได้ ให้ดาวน์โหลดเก็บไว้ทันที (ไฟล์วิดีโอไม่ได้ถูก commit เพราะไฟล์ใหญ่)</div>
   <div class="tip"><b class="b">🖼️ B-roll จริง:</b> เว็บ Stock ถูกบล็อกจากเครื่องคลาวด์ ให้ดาวน์โหลดตามคำค้นในหัวข้อ 6 แล้วแนบมา หรือให้ระบบวาดการ์ดภาพประกอบให้ ซึ่งไม่ติดลิขสิทธิ์</div>

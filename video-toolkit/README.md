@@ -2,7 +2,7 @@
 
 เปลี่ยนคลิปดิบแนวตั้งให้เป็นคลิประดับมืออาชีพ: ตัดช่วงเงียบ, ข้อความไทยพร้อมอนิเมชัน, การ์ดภาพประกอบที่เคลื่อนไหว, เอฟเฟกต์เสียง CC0, เพลงที่สร้างใหม่ และมาสเตอร์ที่ -14 LUFS
 
-📘 คู่มือฉบับเต็ม: [`docs/AI-Video-Production-System.pdf`](docs/AI-Video-Production-System.pdf)
+📘 คู่มือฉบับเต็ม: [`docs/AI-Video-Production-System.pdf`](docs/AI-Video-Production-System.pdf) · ทีม 10 บทบาท: `../.claude/agents/` · 8 Skills: `../.claude/skills/` · กติกา: `../CLAUDE.md`
 
 ## เริ่มต้น
 ```bash
