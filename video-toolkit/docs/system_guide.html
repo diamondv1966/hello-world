@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>AI Video Production System</title>
+<style>
+@font-face { font-family: "KanitR"; src: url("../assets/fonts/KanitRegular.ttf"); }
+@font-face { font-family: "KanitB"; src: url("../assets/fonts/KanitXB.ttf"); }
+:root { --navy:#122A6B; --blue:#1E46B8; --sky:#7DD3FC; --pink:#F9A8D4; --pale:#F3F8FF; --ink:#1f2937; --muted:#5b6476; }
+@page { size: A4; margin: 16mm 15mm 16mm 15mm; }
+* { box-sizing: border-box; }
+body { font-family: "KanitR", sans-serif; color: var(--ink); font-size: 10.5pt; line-height: 1.55; margin: 0; }
+h1, h2, h3, .b { font-family: "KanitB", sans-serif; font-weight: normal; }
+.cover { height: 255mm; display: flex; flex-direction: column; justify-content: center; padding: 0 8mm;
+  background: linear-gradient(160deg, #E0F2FE 0%, #FFFFFF 45%, #FCE7F3 100%); border-radius: 8mm; page-break-after: always; }
+.cover .tag { display:inline-block; background: var(--navy); color:#fff; padding: 2mm 5mm; border-radius: 10mm; font-family:"KanitB"; font-size: 10pt; letter-spacing: .5px; width: fit-content; }
+.cover h1 { font-size: 34pt; line-height: 1.15; color: var(--navy); margin: 8mm 0 4mm; }
+.cover h1 span { background: linear-gradient(90deg, var(--blue), #DB2777); -webkit-background-clip: text; color: transparent; }
+.cover p.lead { font-size: 14pt; color: var(--muted); max-width: 150mm; }
+.cover .bar { height: 3mm; width: 70mm; border-radius: 2mm; background: linear-gradient(90deg, var(--sky), var(--blue), var(--pink)); margin: 6mm 0; }
+.cover .meta { margin-top: 18mm; color: var(--muted); font-size: 10pt; }
+h2 { break-after: avoid; page-break-after: avoid; color: var(--navy); font-size: 17pt; margin: 0 0 3mm; padding-bottom: 2mm; border-bottom: 1.2mm solid; border-image: linear-gradient(90deg, var(--sky), var(--blue), var(--pink)) 1; }
+h2 .n { display:inline-block; width: 10mm; height: 10mm; line-height: 10mm; text-align:center; border-radius: 50%; background: var(--pink); color: var(--navy); margin-right: 3mm; font-size: 13pt; }
+h3 { color: var(--blue); font-size: 12pt; margin: 4mm 0 1.5mm; }
+section { margin-bottom: 8mm; page-break-inside: auto; }
+.page { page-break-before: always; }
+p { margin: 1.5mm 0; }
+ul, ol { margin: 1mm 0 2mm; padding-left: 6mm; }
+li { margin: .8mm 0; }
+table { width: 100%; border-collapse: collapse; margin: 2mm 0 3mm; font-size: 9.6pt; page-break-inside: auto; }
+tr { page-break-inside: avoid; }
+th { background: var(--navy); color: #fff; font-family: "KanitB"; font-weight: normal; text-align: left; padding: 2mm 2.5mm; }
+td { padding: 1.8mm 2.5mm; border-bottom: .3mm solid #E3E8F2; vertical-align: top; }
+tr:nth-child(even) td { background: var(--pale); }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 3mm; }
+.card { border: .4mm solid #DCE6F5; border-radius: 4mm; padding: 3mm 4mm; background: #fff; page-break-inside: avoid; }
+.card .t { font-family: "KanitB"; color: var(--navy); font-size: 11pt; }
+.card .ic { font-size: 15pt; }
+.ok { color: #0F8A4B; font-family: "KanitB"; }
+.warn { color: #B45309; font-family: "KanitB"; }
+.tip { border-left: 1.5mm solid var(--pink); background: #FFF5FA; padding: 3mm 4mm; border-radius: 0 3mm 3mm 0; margin: 2.5mm 0; page-break-inside: avoid; }
+.note { border-left: 1.5mm solid var(--sky); background: #F0F9FF; padding: 3mm 4mm; border-radius: 0 3mm 3mm 0; margin: 2.5mm 0; page-break-inside: avoid; }
+code, .mono { font-family: "DejaVu Sans Mono", monospace; font-size: 8.8pt; background: #EEF2FA; padding: .3mm 1.2mm; border-radius: 1mm; }
+pre { font-family: "DejaVu Sans Mono", monospace; font-size: 8.6pt; background: #0F1B3D; color: #E0F2FE; padding: 3mm 4mm; border-radius: 3mm; white-space: pre-wrap; page-break-inside: avoid; }
+.flow { display: flex; flex-wrap: wrap; gap: 1.5mm; align-items: center; margin: 2mm 0; }
+.flow span { background: linear-gradient(90deg, #E0F2FE, #FCE7F3); border: .3mm solid #C7D7F0; border-radius: 3mm; padding: 1.2mm 3mm; font-family: "KanitB"; color: var(--navy); font-size: 9.5pt; }
+.flow i { color: var(--pink); font-style: normal; font-family: "KanitB"; }
+.swatch { display:inline-block; width: 4mm; height: 4mm; border-radius: 1mm; vertical-align: -0.6mm; margin-right: 1mm; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="tag">AI VIDEO PRODUCTION SYSTEM · CLAUDE CODE</div>
+  <h1>ระบบทีมตัดต่อคลิปสั้น<br><span>Same footage → Different level</span></h1>
+  <div class="bar"></div>
+  <p class="lead">คู่มือสรุประบบ: เปลี่ยนคลิปดิบแนวตั้งให้เป็นคลิป TikTok / Reels ระดับมืออาชีพ ครบทั้งการตัด ข้อความ อนิเมชัน ภาพประกอบ เสียง และเพลง พร้อมโพสต์</p>
+  <div class="meta">เวอร์ชันระบบ 1.0 · โฟลเดอร์ <span class="mono">video-toolkit/</span> ใน repo hello-world (branch claude/thai-vertical-video-edit-pyav26)</div>
+</div>
+
+<section>
+  <h2><span class="n">1</span>ภาพรวม: ระบบนี้ทำอะไรได้บ้าง</h2>
+  <p>ส่งคลิปดิบ 1 ไฟล์ แล้วได้คืนเป็น <b class="b">วิดีโอที่ตัดต่อเสร็จ</b> พร้อม <b class="b">คู่มือ 11 หัวข้อ</b> สำหรับทำต่อใน CapCut</p>
+  <div class="grid3">
+    <div class="card"><div class="ic">✂️</div><div class="t">ตัดอัตโนมัติ</div>หาช่วงเงียบตั้งแต่ 0.2 วินาที ตัดให้เหลือช่องว่าง ~0.1 วินาที และซ่อน jump cut ด้วยการซูมเพิ่ม</div>
+    <div class="card"><div class="ic">📝</div><div class="t">ถอดเสียงไทย</div>Whisper (ทำงานบนเครื่อง) ถอดพร้อม timestamp ทีละช่วงแบบซ้อนกัน เพื่อให้ไม่ตกหล่น</div>
+    <div class="card"><div class="ic">🎨</div><div class="t">ข้อความ + อนิเมชัน</div>ฟอนต์ Kanit โทนฟ้า น้ำเงิน ชมพู มีอนิเมชัน pop, slide, wipe, typewriter และ progress bar</div>
+    <div class="card"><div class="ic">🖼️</div><div class="t">ภาพประกอบเคลื่อนไหว</div>การ์ดอธิบายที่วาดขึ้นเอง เช่น แก้วน้ำค่อย ๆ เต็ม, กราฟ, เกจความดัน, อาหารเด้งเข้า, ไอคอนลอย</div>
+    <div class="card"><div class="ic">🔊</div><div class="t">เสียง + เพลง</div>เอฟเฟกต์เสียง CC0 + เสียงที่สร้างขึ้นเอง, เพลงต้นฉบับไม่ติดลิขสิทธิ์, เพลงเบาลงเองเวลามีคนพูด, มาสเตอร์ที่ -14 LUFS</div>
+    <div class="card"><div class="ic">📦</div><div class="t">ส่งมอบครบชุด</div>MP4 1080x1920, ภาพปก, แคปชั่น + แฮชแท็ก, การ์ด PNG, ชุดเอฟเฟกต์เสียง + cue sheet</div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">2</span>ทีมบทบาทที่ทำงานร่วมกัน</h2>
+  <table>
+    <tr><th style="width:30%">บทบาท</th><th>หน้าที่ในระบบ</th></tr>
+    <tr><td class="b">Video Editor</td><td>วางจุดตัด จังหวะ ความยาว 35–55 วินาที และซ่อน jump cut</td></tr>
+    <tr><td class="b">Script &amp; Hook Specialist</td><td>ทำให้ 3 วินาทีแรกแรง เขียนพาดหัว ข้อความสั้น และ CTA</td></tr>
+    <tr><td class="b">Visual Director</td><td>จัดเฟรม ไม่ให้กราฟิกบังหน้าหรือท่าทางเด่น และเลือกสไตล์ภาพ</td></tr>
+    <tr><td class="b">Motion Designer</td><td>อนิเมชันข้อความ การ์ด ไอคอน และ easing ที่ดูพรีเมียม</td></tr>
+    <tr><td class="b">Sound Designer</td><td>วางเอฟเฟกต์เสียงตรงกับภาพ และกำหนดระดับเทียบเสียงพูด (-6 ถึง -16 dB)</td></tr>
+    <tr><td class="b">Music Director</td><td>อารมณ์ จังหวะ ducking และจุดที่เพลงดังขึ้น เบาลง หรือเงียบ</td></tr>
+    <tr><td class="b">B-roll &amp; Image Researcher</td><td>คำค้นไทยและอังกฤษ ภาพนิ่งหรือคลิป และเหตุผลว่าช่วยให้เข้าใจอย่างไร</td></tr>
+    <tr><td class="b">CapCut / FFmpeg Specialist</td><td>ขั้นตอนใน CapCut และ pipeline FFmpeg สำหรับ render จริง</td></tr>
+    <tr><td class="b">System Setup &amp; Docs</td><td>ติดตั้งและตรวจระบบ ดูแลไฟล์ และทำคู่มือ (รวมถึง PDF นี้)</td></tr>
+  </table>
+</section>
+
+<section class="page">
+  <h2><span class="n">3</span>สิ่งที่ต้องมี / สิ่งที่เตรียมไว้แล้ว</h2>
+  <table>
+    <tr><th style="width:34%">ส่วนประกอบ</th><th style="width:16%">สถานะ</th><th>รายละเอียด</th></tr>
+    <tr><td>FFmpeg 6.1 (libass, harfbuzz, x264)</td><td class="ok">✅ พร้อม</td><td>ตัดต่อ ใส่ข้อความไทย ซูม ปรับสี มิกซ์เสียง</td></tr>
+    <tr><td>Python 3.13 + faster-whisper</td><td class="ok">✅ พร้อม</td><td>ถอดเสียงไทย</td></tr>
+    <tr><td>โมเดล Whisper small (int8)</td><td class="ok">✅ พร้อม</td><td>ดาวน์โหลดจาก npm และตรวจ SHA-256 แล้ว (HuggingFace ถูกบล็อก)</td></tr>
+    <tr><td>Pillow + raqm, numpy, fonttools</td><td class="ok">✅ พร้อม</td><td>วาดการ์ดและกราฟิกภาษาไทย สังเคราะห์เพลงและเสียง</td></tr>
+    <tr><td>ฟอนต์ Kanit Regular / ExtraBold</td><td class="ok">✅ พร้อม</td><td>ไทยและอังกฤษรวมในไฟล์เดียว (OFL)</td></tr>
+    <tr><td>Noto Color Emoji</td><td class="ok">✅ พร้อม</td><td>ไอคอนและภาพในการ์ด</td></tr>
+    <tr><td>เอฟเฟกต์เสียง uisfx (CC0)</td><td class="ok">✅ พร้อม</td><td>12 แนว × 78 เสียง ใช้เชิงพาณิชย์ได้</td></tr>
+    <tr><td>Chromium + Playwright</td><td class="ok">✅ พร้อม</td><td>ใช้ทำไฟล์ PDF</td></tr>
+    <tr><td>เว็บ Stock (Pexels, Pixabay, Mixkit, Freesound)</td><td class="warn">⚠️ ถูกบล็อก</td><td>ใช้ภาพประกอบที่วาดขึ้นเองแทน หรือส่งไฟล์ B-roll มาให้</td></tr>
+  </table>
+  <h3>ติดตั้ง / ตรวจระบบ (ใช้เวลาประมาณ 15 วินาที)</h3>
+<pre>cd video-toolkit
+./setup.sh          # ติดตั้งทุกอย่างลง assets/ (รันซ้ำได้ ไม่มีผลเสีย)
+./check_system.sh   # รายงาน ✅/❌ แล้วแจ้ง "ระบบพร้อมใช้งานแล้ว"</pre>
+  <h3>เครื่องมือในโฟลเดอร์ <span class="mono">tools/</span></h3>
+  <table>
+    <tr><th style="width:34%">ไฟล์</th><th>ทำอะไร</th></tr>
+    <tr><td class="mono">new_project.sh &lt;clip&gt;</td><td>สร้างโปรเจกต์ แสดงชื่อไฟล์และ SHA-256 และ<b class="b">เตือนถ้าเป็นคลิปเดิมที่เคยใช้แล้ว</b></td></tr>
+    <tr><td class="mono">transcribe.py &lt;project&gt;</td><td>ถอดเสียงไทยพร้อม timestamp แล้วบันทึกเป็น transcript.txt</td></tr>
+    <tr><td class="mono">silences.sh &lt;video&gt;</td><td>รายการช่วงเงียบ (ค่าเริ่มต้น -33 dB, 0.2 วินาที)</td></tr>
+    <tr><td class="mono">measure.sh &lt;video&gt;</td><td>วัดความดัง (LUFS), เสียงรบกวน, ความสว่าง และความอิ่มสี</td></tr>
+    <tr><td class="mono">contact_sheet.sh</td><td>ภาพรวมเฟรมสำหรับดูท่าทางและการจัดเฟรม</td></tr>
+    <tr><td class="mono">render_example.sh &lt;project&gt;</td><td>render ทั้งคลิป: ตัด → ข้อความ → กราฟิก → เสียง → มาสเตอร์</td></tr>
+  </table>
+</section>
+
+<section class="page">
+  <h2><span class="n">4</span>มาตรฐานคุณภาพคลิป</h2>
+  <div class="grid">
+    <div class="card"><div class="t">⚡ จังหวะ</div><ul><li>Hook แรงใน 3 วินาทีแรก (ข้อความขึ้นภายใน 0.3 วินาที)</li><li>ตัดช่วงเงียบที่ยาวเกิน 0.2–0.3 วินาที</li><li>ตัดคำที่พูดผิด พูดซ้ำ หรือไม่จำเป็น</li><li>ความยาว 35–55 วินาที</li></ul></div>
+    <div class="card"><div class="t">🎨 ภาพและข้อความ</div><ul><li>โทนสี <span class="swatch" style="background:#7DD3FC"></span>ฟ้าอ่อน → <span class="swatch" style="background:#1E46B8"></span>น้ำเงิน → <span class="swatch" style="background:#F9A8D4"></span>ชมพูอ่อน</li><li>มีภาพประกอบในประเด็นสำคัญ</li><li>มีอนิเมชันที่ช่วยเน้นประเด็น ใช้เวลาเข้าไม่เกิน 0.3 วินาที</li><li>กราฟิกไม่บังหน้า ท่าทางเด่น หรือ UI ของ TikTok</li></ul></div>
+    <div class="card"><div class="t">🔊 เสียง</div><ul><li>เสียงพูดชัด: ลดเสียงรบกวน, EQ, ลดเสียง "ซ", คอมเพรส</li><li>เพลงเบากว่าเสียงพูด 17–20 dB และเบาลงเองเวลามีคนพูด</li><li>มาสเตอร์ -14 LUFS / peak ≤ -1.5 dBFS</li></ul></div>
+    <div class="card"><div class="t">✅ ส่งมอบ</div><ul><li>MP4 1080x1920 30fps H.264 + AAC</li><li>ภาพปก แคปชั่น และแฮชแท็ก</li><li>สื่อทั้งหมดไม่ติดลิขสิทธิ์ (CC0 / สร้างขึ้นเอง / OFL)</li><li>คลิปสุขภาพต้องมีคำเตือนทางการแพทย์</li></ul></div>
+  </div>
+</section>
+
+<section class="page">
+  <h2><span class="n">5</span>ขั้นตอนการทำงานทั้งหมด</h2>
+  <div class="flow"><span>0 ตรวจระบบ</span><i>→</i><span>1 รับคลิป + ยืนยันไฟล์</span><i>→</i><span>2 วิเคราะห์</span><i>→</i><span>3 วางแผน 11 หัวข้อ</span><i>→</i><span>4 Render</span><i>→</i><span>5 ตรวจคุณภาพ</span><i>→</i><span>6 ส่งมอบ</span></div>
+  <table>
+    <tr><th style="width:24%">ขั้น</th><th>สิ่งที่ทำ</th><th style="width:28%">ผลลัพธ์</th></tr>
+    <tr><td class="b">0 ตรวจระบบ</td><td><span class="mono">./check_system.sh</span> แล้วติดตั้งส่วนที่ขาดด้วย <span class="mono">./setup.sh</span></td><td>"ระบบพร้อมใช้งานแล้ว"</td></tr>
+    <tr><td class="b">1 รับคลิป</td><td><span class="mono">new_project.sh</span>: ยืนยันชื่อไฟล์, SHA-256 และความละเอียด และเตือนถ้าเป็นคลิปซ้ำ</td><td>projects/&lt;ชื่อ&gt;/src.mp4</td></tr>
+    <tr><td class="b">2 วิเคราะห์</td><td>ถอดเสียง, หาช่วงเงียบ, วัดเสียงและสี, ดูท่าทางทุก 0.5 วินาที</td><td>transcript, รายการช่วงเงียบ, ค่าที่วัดได้</td></tr>
+    <tr><td class="b">3 วางแผน</td><td>จุดตัด, โครงสร้าง, ข้อความ, B-roll, กราฟิก, เสียง, เพลง, สี, CapCut</td><td>คู่มือ 11 หัวข้อ (.md)</td></tr>
+    <tr><td class="b">4 Render</td><td>timeline.py → base video → เพลงและเอฟเฟกต์เสียง → กราฟิก → มิกซ์และมาสเตอร์</td><td>FINAL.mp4</td></tr>
+    <tr><td class="b">5 ตรวจคุณภาพ</td><td>ดูเฟรมที่สุ่มมา (กราฟิกบังหน้าไหม), วัด LUFS และ peak, เช็กความยาว</td><td>แก้ไขแล้ว render ซ้ำ</td></tr>
+    <tr><td class="b">6 ส่งมอบ</td><td>วิดีโอ ภาพปก แคปชั่น การ์ด PNG ชุดเอฟเฟกต์เสียง และคู่มือ</td><td>ไฟล์พร้อมโพสต์</td></tr>
+  </table>
+  <div class="note"><b class="b">หลักวางภาพประกอบ:</b> ให้การ์ดขึ้น<b class="b">หลัง</b>ท่าทางเด่น (เช่น จับหัว หรือแกล้งหาว) และตรงกับตอนพูดคำสำคัญ เช่น "ขาด…" หรือ "เสี่ยง…" วางไว้ครึ่งล่างของจอ ถ้าหน้าลงมาต่ำ ให้ปรับจุดซูมให้หน้าอยู่สูงขึ้น</div>
+</section>
+
+<section>
+  <h2><span class="n">6</span>รูปแบบการตอบกลับ (11 หัวข้อ + ส่วนที่ 12)</h2>
+  <div class="grid">
+    <table>
+      <tr><th style="width:12%">#</th><th>หัวข้อ</th></tr>
+      <tr><td>1</td><td>สรุปคลิป (เนื้อหา อารมณ์ กลุ่มเป้าหมาย จุดเด่น จุดอ่อน)</td></tr>
+      <tr><td>2</td><td>ถอดเสียงโดยประมาณ + timestamp</td></tr>
+      <tr><td>3</td><td>จุดตัดที่แนะนำ + เหตุผล</td></tr>
+      <tr><td>4</td><td>โครงสร้างใหม่ Hook → เนื้อหา → CTA + กล้อง</td></tr>
+      <tr><td>5</td><td>ข้อความบนจอ + อนิเมชัน (ตำแหน่ง ขนาด จังหวะ)</td></tr>
+      <tr><td>6</td><td>ภาพประกอบ / B-roll + คำค้นไทยและอังกฤษ</td></tr>
+    </table>
+    <table>
+      <tr><th style="width:12%">#</th><th>หัวข้อ</th></tr>
+      <tr><td>7</td><td>กราฟิกและอนิเมชันเพิ่มเติม (เวลาขึ้นและหาย)</td></tr>
+      <tr><td>8</td><td>เอฟเฟกต์เสียง + ระดับเทียบเสียงพูด</td></tr>
+      <tr><td>9</td><td>แนวทางเพลง (อารมณ์ จังหวะ ระดับความดัง ไดนามิก)</td></tr>
+      <tr><td>10</td><td>การปรับภาพและโทนสี (ค่าตัวเลข)</td></tr>
+      <tr><td>11</td><td>ขั้นตอนใน CapCut ทีละขั้น</td></tr>
+      <tr><td>12</td><td><i>(ถ้ามี)</i> ไฟล์ที่ส่งมอบ + ข้อจำกัดที่ต้องรู้</td></tr>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">7</span>วิธีใช้งานจริงแบบสั้น ๆ</h2>
+  <ol>
+    <li><b class="b">เปิดเซสชันใหม่:</b> พิมพ์ "ตรวจสอบและเตรียมระบบ" แล้วผมจะรัน <span class="mono">setup.sh</span> + <span class="mono">check_system.sh</span> ให้</li>
+    <li><b class="b">แนบคลิป</b> (MP4 แนวตั้ง) พร้อมคำสั่ง เช่น<br><i>"นี่คือคลิปใหม่ ชื่อ ___ วิเคราะห์ 11 หัวข้อ แล้วตัดเป็นไฟล์ เน้นภาพประกอบและอนิเมชัน"</i></li>
+    <li>ผมจะ<b class="b">ยืนยันชื่อไฟล์และ SHA-256</b> ก่อนเริ่ม และเตือนถ้าเป็นคลิปซ้ำ</li>
+    <li>ได้คู่มือ 11 หัวข้อ แล้วตามด้วยไฟล์วิดีโอที่ตัดต่อเสร็จ</li>
+    <li>ดูและฟังหนึ่งรอบ แล้วสั่งแก้แบบเจาะจง เช่น "เพลงเบาลง 20%", "การ์ดข้อ 3 ขึ้นช้าลง 0.5 วิ", "เปลี่ยนสีพาดหัวเป็นฟ้า"</li>
+    <li>โพสต์: อัปโหลด MP4 → ใช้ภาพปก → วางแคปชั่น → เปิดคำบรรยายอัตโนมัติ (ไม่ต้องเพิ่มเพลง)</li>
+  </ol>
+  <h3>คำสั่งที่ใช้บ่อย</h3>
+  <table>
+    <tr><th style="width:40%">พิมพ์ว่า</th><th>ผลลัพธ์</th></tr>
+    <tr><td>"วิเคราะห์อย่างเดียว"</td><td>ได้คู่มือ 11 หัวข้อ ยังไม่ render</td></tr>
+    <tr><td>"ตัดเป็นไฟล์ตามแผน"</td><td>render วิดีโอเต็ม + ไฟล์ประกอบ</td></tr>
+    <tr><td>"ทำเวอร์ชันสั้น 30–40 วิ"</td><td>ตัดช่วงรองออก เก็บ Hook + ประเด็นหลัก + CTA</td></tr>
+    <tr><td>"ทำเวอร์ชันไม่มีเพลง"</td><td>ไว้ใช้เพลงฮิตจากคลังของ TikTok เอง</td></tr>
+    <tr><td>"นี่คือไฟล์ B-roll"</td><td>แทรกภาพหรือคลิปจริงตามจุดในแผน แทนภาพที่วาด</td></tr>
+  </table>
+</section>
+
+<section class="page">
+  <h2><span class="n">8</span>เคล็ดลับสำคัญ</h2>
+  <div class="tip"><b class="b">🔒 บังคับให้ใช้คลิปใหม่:</b> เขียนในข้อความว่า <i>"นี่คือคลิปใหม่ ชื่อไฟล์ ___ ห้ามใช้ข้อมูลจากคลิปก่อนหน้า"</i> ระบบจะตรวจ SHA-256 ทุกครั้ง ถ้าไฟล์ซ้ำกับที่เคยส่งมาจะแจ้งทันที ป้องกันการแนบผิดไฟล์ (ชื่อไฟล์ที่ลงท้ายเหมือนกันไม่ได้แปลว่าเป็นคลิปเดียวกัน ระบบเทียบจากเนื้อไฟล์)</div>
+  <div class="tip"><b class="b">💾 เซสชันคลาวด์ถูกล้างได้:</b> เครื่องมืออยู่ใน repo (<span class="mono">video-toolkit/</span>) และติดตั้งใหม่ได้ด้วย <span class="mono">./setup.sh</span> ภายในไม่กี่วินาที ส่วนวิดีโอที่ได้ ให้ดาวน์โหลดเก็บไว้ทันที (ไฟล์วิดีโอไม่ได้ถูก commit เพราะไฟล์ใหญ่)</div>
+  <div class="tip"><b class="b">🖼️ B-roll จริง:</b> เว็บ Stock ถูกบล็อกจากเครื่องคลาวด์ ให้ดาวน์โหลดตามคำค้นในหัวข้อ 6 แล้วแนบมา หรือให้ระบบวาดการ์ดภาพประกอบให้ ซึ่งไม่ติดลิขสิทธิ์</div>
+  <div class="tip"><b class="b">🎧 ฟังก่อนโพสต์เสมอ:</b> AI ตรวจจากค่าความดังและเฟรมภาพ แต่ฟังเสียงเองไม่ได้ ควรเปิดดูและฟังหนึ่งรอบก่อนโพสต์</div>
+  <div class="tip"><b class="b">🩺 คลิปสุขภาพ:</b> ใส่คำเตือน "ข้อมูลเบื้องต้น ไม่ใช่การวินิจฉัย" และเช็กข้อมูลบนการ์ด (ตัวเลข เกณฑ์) ก่อนโพสต์</div>
+  <div class="tip"><b class="b">🎯 สั่งแก้ให้ได้ผลเร็ว:</b> ระบุเวลา + สิ่งที่ต้องการ เช่น "0:12 การ์ดบังปาก ให้ย้ายลง" ดีกว่า "ปรับให้สวยขึ้น"</div>
+  <div class="note"><b class="b">ใบอนุญาต:</b> uisfx = CC0 1.0 · Kanit = SIL OFL · Noto Color Emoji = OFL · เพลงและเสียงที่สังเคราะห์ขึ้น = สร้างใหม่ในระบบ · โมเดลถอดเสียง = OpenAI Whisper (MIT)</div>
+</section>
+
+</body>
+</html>

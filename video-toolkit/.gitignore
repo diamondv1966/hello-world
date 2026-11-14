@@ -1,0 +1,7 @@
+assets/
+projects/
+*.mp4
+*.mov
+*.wav
+*.f32
+__pycache__/
