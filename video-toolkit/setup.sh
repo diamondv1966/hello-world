@@ -12,8 +12,10 @@ if ! command -v ffmpeg >/dev/null; then apt-get update -qq && apt-get install -y
 ffmpeg -version | head -1
 
 say "2/5 Python packages"
-python3 -c "import faster_whisper, fontTools, PIL, numpy" 2>/dev/null || \
-  pip install -q "faster-whisper==1.2.1" "fonttools>=4.50" "pillow>=10" "numpy>=1.26"
+python3 -c "import faster_whisper, fontTools, PIL, numpy, pythainlp, cv2, pytesseract" 2>/dev/null || \
+  pip install -q "faster-whisper==1.2.1" "fonttools>=4.50" "pillow>=10" "numpy>=1.26" "pythainlp>=5" "opencv-python-headless<5" "pytesseract>=0.3"
+command -v tesseract >/dev/null && tesseract --list-langs 2>/dev/null | grep -q tha || \
+  { apt-get install -y -qq tesseract-ocr tesseract-ocr-tha >/dev/null 2>&1 || (apt-get update -qq && apt-get install -y -qq tesseract-ocr tesseract-ocr-tha) || echo "WARN: tesseract (OCR for reference captions) not installed"; }
 python3 -c "from PIL import features; assert features.check('raqm'), 'PIL needs raqm for Thai shaping'"
 
 say "3/5 Speech-to-text model (Whisper small, CTranslate2 int8, from npm)"

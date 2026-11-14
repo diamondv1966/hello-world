@@ -9,6 +9,11 @@ repo นี้คือ **ระบบทีมตัดต่อคลิปส
 4. ตอบตามโครงสร้าง 12 หัวข้อ (skill `video-clip-analysis`) แล้วค่อย render เมื่อผู้ใช้สั่ง
 5. ตอบเป็นภาษาไทย; ตรวจคุณภาพด้วยเฟรมจริง + ค่า LUFS ก่อนส่งงานเสมอ
 
+## ⚡ โหมดหลัก: "หย่อนคลิป + บอกเรฟ"
+เมื่อผู้ใช้แนบคลิปและบอกเรฟ (ไฟล์คลิปตัวอย่าง / ชื่อครีเอเตอร์ เช่น Hormozi, Ali Abdaal / ชื่อ preset / คำบรรยาย) → ใช้ skill **`edit-like-reference`** ทันที:
+`tools/edit_like.sh <clip> <ref> <name> th --plan-only` → แก้ถอดเสียง + เขียน config.json (hook/emphasis/cards/cta) → `tools/auto_edit.py` → QA (qa.jpg, LUFS) → ส่ง FINAL.mp4
+presets: clean-pastel (ค่าเริ่มต้น) · bold-hormozi · calm-abdaal · codie-bold · minimal-aesthetic (`video-toolkit/presets/`)
+
 ## มาตรฐาน
 Hook ≤3 วิ · ตัดเงียบ >0.2–0.3 วิ · ยาว 35–55 วิ · สี ฟ้าอ่อน #7DD3FC → น้ำเงิน #1E46B8 → ชมพูอ่อน #F9A8D4 · ภาพประกอบ+อนิเมชันในจุดสำคัญ · -14 LUFS / TP ≤ -1.5 dBFS · safe zone TikTok: บน 130px, ล่าง 480px, ขวา 150px
 

@@ -1,0 +1,78 @@
+{
+ "cut": {
+  "max_gap": 0.35,
+  "pad": 0.1,
+  "end_pad": 0.4,
+  "remove_retakes": true,
+  "max_len": 55
+ },
+ "zoom": {
+  "mode": "slow",
+  "levels": [
+   1.0,
+   1.03
+  ],
+  "drift": 0.03,
+  "emphasis_punch": 0.0,
+  "face_y": 0.4,
+  "anchor": 0.38
+ },
+ "captions": {
+  "style": "phrase",
+  "font": "KanitRegular",
+  "size": 58,
+  "y": 1330,
+  "alt_y": 380,
+  "max_words": 7,
+  "max_chars": 28,
+  "color": "#FFFFFF",
+  "highlight": "#FFFFFF",
+  "past_color": null,
+  "outline": "#000000",
+  "outline_w": 2,
+  "shadow": 3,
+  "box": null,
+  "emphasis_color": "#F9A8D4",
+  "drop_particles": false
+ },
+ "hook": {
+  "size": 84,
+  "color": "#FFFFFF",
+  "accent": "#F9A8D4",
+  "outline": "#122A6B",
+  "y": 300,
+  "dur": 2.6
+ },
+ "cta": {
+  "color": "#FFFFFF",
+  "box": "#1E46B8"
+ },
+ "grade": {
+  "contrast": 1.0,
+  "saturation": 0.95,
+  "brightness": 0.02,
+  "warmth": 0.02,
+  "vignette": false,
+  "sharpen": 0.5,
+  "desaturate": false
+ },
+ "sfx": {
+  "cut_whoosh": null,
+  "cut_level": 0.1,
+  "cut_min_gap": 1.4,
+  "emphasis": null,
+  "emphasis_level": 0.3,
+  "hook": "dreamy/notification",
+  "hook_level": 0.42,
+  "card": "dreamy/select",
+  "cta": "dreamy/success"
+ },
+ "music": {
+  "enabled": true,
+  "mood": "calm",
+  "bpm": 80,
+  "level": 0.085
+ },
+ "name": "minimal-aesthetic",
+ "description": "มินิมอล: ตัวเล็ก Regular สีขาว ไม่มีขอบหนา, วางล่างนิ่ง ๆ, ซูมช้ามาก, เสียงแทบไม่มี, เพลง calm — เหมาะ vlog/ความงาม/แฟชั่น"
+}

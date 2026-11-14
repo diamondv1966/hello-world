@@ -1,0 +1,78 @@
+{
+ "cut": {
+  "max_gap": 0.18,
+  "pad": 0.04,
+  "end_pad": 0.4,
+  "remove_retakes": true,
+  "max_len": 55
+ },
+ "zoom": {
+  "mode": "alternate",
+  "levels": [
+   1.0,
+   1.18
+  ],
+  "drift": 0.02,
+  "emphasis_punch": 0.12,
+  "face_y": 0.4,
+  "anchor": 0.38
+ },
+ "captions": {
+  "style": "pop",
+  "font": "KanitXB",
+  "size": 104,
+  "y": 1220,
+  "alt_y": 380,
+  "max_words": 2,
+  "max_chars": 12,
+  "color": "#FFFFFF",
+  "highlight": "#FFE600",
+  "past_color": null,
+  "outline": "#000000",
+  "outline_w": 10,
+  "shadow": 0,
+  "box": null,
+  "emphasis_color": "#3BFF6B",
+  "drop_particles": false
+ },
+ "hook": {
+  "size": 112,
+  "color": "#FFFFFF",
+  "accent": "#FFE600",
+  "outline": "#000000",
+  "y": 300,
+  "dur": 2.6
+ },
+ "cta": {
+  "color": "#000000",
+  "box": "#FFE600"
+ },
+ "grade": {
+  "contrast": 1.1,
+  "saturation": 1.05,
+  "brightness": 0.0,
+  "warmth": 0.0,
+  "vignette": true,
+  "sharpen": 0.5,
+  "desaturate": false
+ },
+ "sfx": {
+  "cut_whoosh": null,
+  "cut_level": 0.1,
+  "cut_min_gap": 1.4,
+  "emphasis": "studio/press",
+  "emphasis_level": 0.25,
+  "hook": "cinematic/press",
+  "hook_level": 0.42,
+  "card": "studio/select",
+  "cta": "glass/success"
+ },
+ "music": {
+  "enabled": true,
+  "mood": "serious",
+  "bpm": 90,
+  "level": 0.06
+ },
+ "name": "bold-hormozi",
+ "description": "แรง เร็ว: คำต่อคำตัวใหญ่ ไฮไลต์เหลือง, ตัด jump cut ถี่, punch zoom ทุกช่วง, ไม่มี whoosh ทรานสิชัน (เสียงพูดนำ), เพลงเบามาก — เหมาะธุรกิจ/สร้างแรงจูงใจ/ขายของ"
+}

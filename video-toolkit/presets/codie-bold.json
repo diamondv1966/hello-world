@@ -1,0 +1,78 @@
+{
+ "cut": {
+  "max_gap": 0.22,
+  "pad": 0.06,
+  "end_pad": 0.4,
+  "remove_retakes": true,
+  "max_len": 55
+ },
+ "zoom": {
+  "mode": "alternate",
+  "levels": [
+   1.0,
+   1.08
+  ],
+  "drift": 0.04,
+  "emphasis_punch": 0.08,
+  "face_y": 0.4,
+  "anchor": 0.38
+ },
+ "captions": {
+  "style": "phrase",
+  "font": "KanitXB",
+  "size": 92,
+  "y": 1250,
+  "alt_y": 380,
+  "max_words": 5,
+  "max_chars": 20,
+  "color": "#FFFFFF",
+  "highlight": "#FFFFFF",
+  "past_color": null,
+  "outline": "#000000",
+  "outline_w": 0,
+  "shadow": 6,
+  "box": null,
+  "emphasis_color": "#FF8A3D",
+  "drop_particles": false
+ },
+ "hook": {
+  "size": 112,
+  "color": "#FFFFFF",
+  "accent": "#FF8A3D",
+  "outline": "#000000",
+  "y": 300,
+  "dur": 2.6
+ },
+ "cta": {
+  "color": "#FFFFFF",
+  "box": "#FF8A3D"
+ },
+ "grade": {
+  "contrast": 1.08,
+  "saturation": 1.1,
+  "brightness": 0.0,
+  "warmth": 0.04,
+  "vignette": true,
+  "sharpen": 0.5,
+  "desaturate": false
+ },
+ "sfx": {
+  "cut_whoosh": null,
+  "cut_level": 0.1,
+  "cut_min_gap": 1.4,
+  "emphasis": "studio/select",
+  "emphasis_level": 0.3,
+  "hook": "studio/notification",
+  "hook_level": 0.42,
+  "card": "studio/progress-step",
+  "cta": "studio/success"
+ },
+ "music": {
+  "enabled": true,
+  "mood": "energetic",
+  "bpm": 104,
+  "level": 0.07
+ },
+ "name": "codie-bold",
+ "description": "ตัวหนังสือขาวหนาใหญ่ ไม่มีขอบ (มีเงา), ข้อความนำทุกประโยค, สีอบอุ่น, ตัดกระชับ — เหมาะ business/การเงิน/ข้อคิด"
+}

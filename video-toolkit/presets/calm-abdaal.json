@@ -1,0 +1,78 @@
+{
+ "cut": {
+  "max_gap": 0.3,
+  "pad": 0.08,
+  "end_pad": 0.4,
+  "remove_retakes": true,
+  "max_len": 55
+ },
+ "zoom": {
+  "mode": "slow",
+  "levels": [
+   1.0,
+   1.05
+  ],
+  "drift": 0.05,
+  "emphasis_punch": 0.05,
+  "face_y": 0.4,
+  "anchor": 0.38
+ },
+ "captions": {
+  "style": "karaoke",
+  "font": "KanitXB",
+  "size": 76,
+  "y": 1250,
+  "alt_y": 380,
+  "max_words": 6,
+  "max_chars": 24,
+  "color": "#FFFFFF",
+  "highlight": "#FFD84D",
+  "past_color": "#BFC5CF",
+  "outline": "#1A1A1A",
+  "outline_w": 5,
+  "shadow": 2,
+  "box": null,
+  "emphasis_color": "#FFD84D",
+  "drop_particles": false
+ },
+ "hook": {
+  "size": 112,
+  "color": "#FFFFFF",
+  "accent": "#FFD84D",
+  "outline": "#1A1A1A",
+  "y": 300,
+  "dur": 2.6
+ },
+ "cta": {
+  "color": "#1A1A1A",
+  "box": "#FFD84D"
+ },
+ "grade": {
+  "contrast": 1.05,
+  "saturation": 0.75,
+  "brightness": 0.0,
+  "warmth": 0.01,
+  "vignette": true,
+  "sharpen": 0.5,
+  "desaturate": false
+ },
+ "sfx": {
+  "cut_whoosh": null,
+  "cut_level": 0.1,
+  "cut_min_gap": 1.4,
+  "emphasis": "zen/select",
+  "emphasis_level": 0.2,
+  "hook": "zen/notification",
+  "hook_level": 0.42,
+  "card": "zen/progress-step",
+  "cta": "zen/success"
+ },
+ "music": {
+  "enabled": true,
+  "mood": "calm",
+  "bpm": 84,
+  "level": 0.08
+ },
+ "name": "calm-abdaal",
+ "description": "สงบ อ่านง่าย: เกรดสีจืดลง + สีเน้นเหลืองนวล, คำบรรยายทีละวลี (คำพูดแล้วจางเป็นเทา), ซูมช้า, เสียงน้อย, เพลงนุ่ม — เหมาะสอน/productivity/เล่าเรื่อง"
+}

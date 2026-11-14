@@ -1,0 +1,78 @@
+{
+ "cut": {
+  "max_gap": 0.25,
+  "pad": 0.06,
+  "end_pad": 0.4,
+  "remove_retakes": true,
+  "max_len": 55
+ },
+ "zoom": {
+  "mode": "alternate",
+  "levels": [
+   1.0,
+   1.1
+  ],
+  "drift": 0.04,
+  "emphasis_punch": 0.08,
+  "face_y": 0.4,
+  "anchor": 0.38
+ },
+ "captions": {
+  "style": "karaoke",
+  "font": "KanitXB",
+  "size": 84,
+  "y": 1250,
+  "alt_y": 380,
+  "max_words": 4,
+  "max_chars": 18,
+  "color": "#FFFFFF",
+  "highlight": "#F9A8D4",
+  "past_color": null,
+  "outline": "#122A6B",
+  "outline_w": 8,
+  "shadow": 4,
+  "box": null,
+  "emphasis_color": "#7DD3FC",
+  "drop_particles": false
+ },
+ "hook": {
+  "size": 112,
+  "color": "#FFFFFF",
+  "accent": "#F9A8D4",
+  "outline": "#122A6B",
+  "y": 300,
+  "dur": 2.6
+ },
+ "cta": {
+  "color": "#FFFFFF",
+  "box": "#1E46B8"
+ },
+ "grade": {
+  "contrast": 1.06,
+  "saturation": 1.08,
+  "brightness": 0.0,
+  "warmth": -0.01,
+  "vignette": true,
+  "sharpen": 0.5,
+  "desaturate": false
+ },
+ "sfx": {
+  "cut_whoosh": "cinematic/swipe",
+  "cut_level": 0.1,
+  "cut_min_gap": 1.4,
+  "emphasis": "soft/select",
+  "emphasis_level": 0.3,
+  "hook": "glass/notification",
+  "hook_level": 0.42,
+  "card": "glass/progress-step",
+  "cta": "glass/success"
+ },
+ "music": {
+  "enabled": true,
+  "mood": "bright",
+  "bpm": 96,
+  "level": 0.095
+ },
+ "name": "clean-pastel",
+ "description": "สไตล์บ้านของทีม: โทนฟ้า น้ำเงิน ชมพู, karaoke caption ไฮไลต์ชมพู, ซูมสลับนุ่ม ๆ, เสียง glass/soft, เพลง lo-fi สดใส — เหมาะคอนเทนต์ความรู้/สุขภาพ/ไลฟ์สไตล์"
+}
