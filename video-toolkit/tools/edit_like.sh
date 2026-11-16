@@ -12,16 +12,17 @@ for a in "$@"; do case "$a" in --lang) ;; th|en) LANG_=$a;; --plan-only) EXTRA+=
 [[ -z "$NAME" || "$NAME" == --* ]] && NAME="$(date +%m%d-%H%M)-$(basename "${CLIP%.*}" | tr -cd '[:alnum:]-' | cut -c1-20)"
 tools/new_project.sh "$CLIP" "$NAME" > "projects/.last_intake.txt"; cat projects/.last_intake.txt
 P="projects/$NAME"; [ -f "$P/config.json" ] || echo "{\"language\": \"$LANG_\"}" > "$P/config.json"
+if [[ "$REF" == user/* ]] && [ -f "presets/$REF.json" ]; then PRESET="presets/$REF.json"; else
 case "${REF,,}" in
   *hormozi*|*bold*) PRESET=bold-hormozi;; *abdaal*|*calm*) PRESET=calm-abdaal;; *codie*) PRESET=codie-bold;;
-  *minimal*|*vlog*|*aesthetic*) PRESET=minimal-aesthetic;; *pastel*|*clean*|default) PRESET=clean-pastel;; *) PRESET="";;
-esac
+  *minimal*|*vlog*|*aesthetic*) PRESET=minimal-aesthetic;; *pastel*|*clean*) PRESET=clean-pastel;; *thai*|default|"") PRESET=thai-clear;; *) PRESET="";;
+esac; fi
 REFARG=()
 if [ -z "$PRESET" ] && [ -f "$REF" ]; then
   echo "🔎 วิเคราะห์ reference: $(basename "$REF")"
   python3 -I tools/analyze_ref.py "$REF" "$P/ref" --lang "$LANG_" | tail -4
   PRESET=$(python3 -c "import json;print(json.load(open('$P/ref/style_profile.json'))['suggested_base_preset'])")
   REFARG=(--ref "$P/ref/style_profile.json")
-elif [ -z "$PRESET" ]; then echo "⚠️ ไม่รู้จัก ref '$REF' → ใช้ clean-pastel"; PRESET=clean-pastel; fi
+elif [ -z "$PRESET" ]; then echo "⚠️ ไม่รู้จัก ref '$REF' → ใช้ thai-clear"; PRESET=thai-clear; fi
 echo "🎨 preset: $PRESET"
 python3 -I tools/auto_edit.py "$P" --preset "$PRESET" "${REFARG[@]}" "${EXTRA[@]}"

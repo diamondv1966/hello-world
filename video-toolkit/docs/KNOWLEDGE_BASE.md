@@ -218,3 +218,16 @@ tools/measure.sh <video> · tools/silences.sh <video> · tools/contact_sheet.sh 
 node tools/make_pdf.js docs/system_guide.html docs/AI-Video-Production-System.pdf
 git bundle create video-production-system.bundle 496bb6d..HEAD           # สำรองเมื่อ push ไม่ได้
 ```
+
+---
+
+## 14. Tier 0 foundation (2026-11-16) — routing, contracts, settings
+
+- **Cascading Model Routing**: Tier 0 = เซสชันหลัก (architect + dispatcher) · Tier 1 opus = `01-director-orchestrator`, `02-visual-qa-critic` · Tier 2 sonnet = `03-asr-thai-transcriber`, `04-thai-dedup-cutter`, `05-cv-face-tracker`, `06-graphics-broll-compositor`, `07-ffmpeg-render-engineer` · Tier 3 haiku = `Explore`, `09-test-runner`, `10-bundle-guardian`
+- **spawn depth = 1** (`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1`): subagent สั่ง subagent ต่อไม่ได้ → Tier 0 dispatch ทุก tier เอง; Opus ให้ "แผนแก้" กลับมา
+- agent ใหม่ใน `.claude/agents/` ถูกโหลดตอนเริ่มเซสชันเท่านั้น → ในเซสชันที่สร้างไฟล์ ใช้ `general-purpose` + `model` + ให้อ่านไฟล์ role เอง
+- Escalation: Sonnet ล้ม 2 รอบติด · `collision_count > 0` หลังแก้ 1 รอบ · ปัญหาข้ามโมดูล
+- สัญญาโมดูล: `docs/INTERFACES.md` (asr / dedup / face / layout / qa_visual / auto_edit) · ข้อมูลส่งต่อ: `pipeline_manifest.json` (`docs/schemas/`)
+- `presets/user_settings.json`: automation_level 1/2/3 (ค่าเริ่มต้น 2), default_preset `thai-clear`, knobs 10 ตัว, qa thresholds (margin 24 px, face pad 35 %, ASR gap -35 dBFS ≥2 s)
+- Visual QA Protocol: `artifacts/qa/audio_diagnostics.png` + `contact_sheet.png` ทุก render
+- preset ส่วนตัว: `tools/make_user_preset.py <ref.mp4> <name>` → `presets/user/<name>.json` → ใช้ `edit_like.sh <clip> user/<name> <project>`
