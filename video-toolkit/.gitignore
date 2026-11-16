@@ -5,3 +5,4 @@ projects/
 *.wav
 *.f32
 __pycache__/
+artifacts/qa/*.png

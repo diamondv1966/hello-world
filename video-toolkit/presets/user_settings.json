@@ -1,0 +1,72 @@
+{
+ "_doc": "การตั้งค่าของผู้ใช้ (Tier 0). auto_edit อ่านไฟล์นี้ทุกครั้ง: knobs ทับค่าจาก preset, แต่ config.json ของโปรเจกต์ทับ knobs อีกชั้น",
+ "automation_level": 2,
+ "_automation_levels": {
+  "1": "auto — ระบบทำเองทั้งหมด ไม่มี creative pass ส่ง FINAL ทันที",
+  "2": "creative-assisted (ค่าเริ่มต้น) — Claude แก้คำถอดผิด + hook + คำเน้น + การ์ด + CTA ก่อน render",
+  "3": "plan-approval — ส่งแผน 12 หัวข้อ + plan.json ให้ผู้ใช้อนุมัติก่อน render"
+ },
+ "default_preset": "thai-clear",
+ "language": "th",
+ "knobs": {
+  "1_cut_max_gap": 0.25,
+  "2_zoom": {
+   "levels": [
+    1.0,
+    1.08
+   ],
+   "emphasis_punch": 0.06
+  },
+  "3_captions": {
+   "style": "karaoke",
+   "size": 80,
+   "max_words": 4,
+   "drop_particles": false
+  },
+  "4_sfx": {
+   "enabled": true,
+   "cut_whoosh": true,
+   "level": 0.45
+  },
+  "5_music": {
+   "enabled": true,
+   "mood": "bright",
+   "bpm": 92,
+   "level": 0.085
+  },
+  "6_grade": {
+   "mode": "preset",
+   "_options": [
+    "preset",
+    "match_ref"
+   ]
+  },
+  "7_max_len_s": 55,
+  "8_deliverables": [
+   "FINAL.mp4",
+   "cover.jpg",
+   "captions.srt",
+   "caption_post.txt",
+   "cue_sheet.tsv",
+   "qa_images",
+   "plan_12_sections"
+  ],
+  "9_bilingual_captions": false,
+  "10_ref_presets_dir": "presets/user"
+ },
+ "qa": {
+  "collision_margin_px": 24,
+  "face_pad": 0.35,
+  "asr_gap_rms_dbfs": -35,
+  "asr_gap_min_s": 2.0,
+  "max_collisions": 0
+ },
+ "routing": {
+  "tier0": "main session (architect + dispatcher; subagent spawn depth = 1)",
+  "tier1": "opus: 01-director-orchestrator, 02-visual-qa-critic",
+  "tier2": "sonnet: 03..07",
+  "tier3": "haiku: Explore, 09-test-runner, 10-bundle-guardian",
+  "escalate_after_failed_attempts": 2,
+  "escalate_if_collision_count_gt": 0
+ }
+}

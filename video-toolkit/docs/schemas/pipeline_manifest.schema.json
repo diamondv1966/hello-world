@@ -1,0 +1,34 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "pipeline_manifest.json — central hand-off between pipeline stages / agents",
+ "type": "object",
+ "required": ["version", "src", "settings", "asr", "cuts", "keeps", "segments", "captions", "cards", "qa"],
+ "properties": {
+  "version": {"const": 1},
+  "project": {"type": "string"},
+  "src": {"type": "object", "required": ["path", "sha256", "duration", "w", "h"],
+          "properties": {"path": {"type": "string"}, "sha256": {"type": "string"}, "duration": {"type": "number"}, "w": {"type": "integer"}, "h": {"type": "integer"}, "fps": {"type": "number"}}},
+  "settings": {"type": "object", "properties": {"preset": {"type": "string"}, "automation_level": {"enum": [1, 2, 3]}, "language": {"type": "string"}}},
+  "asr": {"type": "object", "description": "owner: 03-asr-thai-transcriber (tools/vt/asr.py)",
+          "properties": {
+            "words": {"type": "array", "items": {"type": "object", "required": ["w", "s", "e"], "properties": {"w": {"type": "string"}, "s": {"type": "number"}, "e": {"type": "number"}}}},
+            "segments": {"type": "array", "items": {"type": "object", "required": ["text", "s", "e", "i0", "i1"], "description": "sentence-ish units; words[i0:i1]"}},
+            "coverage": {"type": "object", "properties": {"speech_spans": {"type": "array"}, "transcribed_spans": {"type": "array"}, "rerun_spans": {"type": "array"}, "uncovered_spans": {"type": "array", "description": "speech (RMS>-35dBFS ≥2s) still without words after re-run — must be empty"}}}}},
+  "cuts": {"type": "array", "description": "source spans removed; owner 04-thai-dedup-cutter",
+           "items": {"type": "object", "required": ["a", "b", "kind"], "properties": {"a": {"type": "number"}, "b": {"type": "number"}, "kind": {"enum": ["silence", "head", "tail", "retake", "skip"]}, "reason": {"type": "string"}, "similarity": {"type": "number"}}}},
+  "keeps": {"type": "array", "items": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2}},
+  "segments": {"type": "array", "description": "rendered sub-segments; owner 05 (face) + 07 (render)",
+               "items": {"type": "object", "required": ["a", "b", "oa", "ob", "z0", "z1"],
+                         "properties": {"a": {"type": "number"}, "b": {"type": "number"}, "oa": {"type": "number"}, "ob": {"type": "number"},
+                                        "z0": {"type": "number"}, "z1": {"type": "number"},
+                                        "crop0": {"type": "array", "description": "[x0,y0,w,h] visible source-pixel window at segment start"},
+                                        "crop1": {"type": "array", "description": "same at segment end"},
+                                        "face_out": {"type": ["array", "null"], "description": "padded face bbox [x,y,w,h] in OUTPUT 1080x1920 px = union over the segment (after zoom)"}}}},
+  "captions": {"type": "array", "items": {"type": "object", "required": ["t0", "t1", "text", "bbox"], "properties": {"bbox": {"type": "array", "description": "[x,y,w,h] output px"}}}},
+  "cards": {"type": "array", "items": {"type": "object", "required": ["t0", "t1", "bbox", "mode"], "properties": {"mode": {"enum": ["card", "card_small", "broll_pip", "broll_full"]}, "bbox": {"type": "array"}}}},
+  "broll": {"type": "array"},
+  "qa": {"type": "object", "properties": {"collision_count": {"type": "integer"}, "face_card_overlaps": {"type": "integer"}, "sub_card_overlaps": {"type": "integer"}, "asr_uncovered_s": {"type": "number"},
+                                          "lufs": {"type": "number"}, "peak": {"type": "number"}, "duration": {"type": "number"}, "images": {"type": "array"}}},
+  "outputs": {"type": "object"}
+ }
+}
