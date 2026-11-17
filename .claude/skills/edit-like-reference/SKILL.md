@@ -19,13 +19,13 @@ tools/edit_like.sh <clip> <ref|preset|keyword> <name> th --plan-only
 
 ## 3. Creative pass — ตาม `presets/user_settings.json` → `automation_level`
 - ระดับ 1: ข้ามขั้นนี้ render ทันที · **ระดับ 2 (ค่าเริ่มต้น)**: ทำขั้นนี้แล้ว render · ระดับ 3: ทำขั้นนี้ + ส่งแผน 12 หัวข้อให้ผู้ใช้อนุมัติก่อน render
-1. อ่านคำพูดเต็ม: `python3 -c "import json;print(''.join(w['w'] for w in json.load(open('projects/<name>/words.json'))))"`
-2. **แก้คำที่ถอดผิด** ใน words.json (แก้ `w` เท่านั้น ห้ามแตะเวลา) — ซับบนจอใช้ข้อความนี้ตรง ๆ
+1. อ่านคำพูดเต็มพร้อมเวลา: `python3 -I -c "import json;r=json.load(open('projects/<name>/asr.json'));[print(round(x['s'],1),round(x['e'],1),x['text']) for x in r['segments']]"`
+2. **แก้คำที่ถอดผิดด้วย `transcript_overrides`** ใน config.json: `[{"s":เริ่ม,"e":จบ,"text":"ข้อความที่ถูกต้อง"}]` ต่อช่วง (Whisper small ผิดบ่อยในภาษาไทย เช่น "ก้าว"→"เก้า") — ซับ/คำเน้น/การ์ดใช้ข้อความนี้; ใส่ตัวเลขข้อ ("1 ค่ะ …") ตามที่พูดจริง
 3. ดู `ref/ref_sheet.jpg` (ถ้ามีเรฟ) + `tools/contact_sheet.sh projects/<name>/src.mp4 projects/<name>/gest.jpg 2` → ฟอนต์/สีไฮไลต์/ตำแหน่งซับ/ลูกเล่นของเรฟ และท่าเด่นของคลิป
 4. เขียน `projects/<name>/config.json`:
    - `hook.lines` 1–2 บรรทัด ≤14 ตัว/บรรทัด สร้าง open loop (ตัวเลข/คำเตือน/คำถาม)
-   - `emphasis` 3–8 คำ **สะกดตรงกับ words.json** (คำตอบ/ตัวเลข/คำสำคัญ) → สีเน้น + เสียง + ซูม punch
-   - `cards` สำหรับคำนามธรรม (≤1 ใบต่อ 8–10 วิ, `at` = คำที่พูด, ไม่ทับท่าเด่น) — items = [อีโมจิ, ป้าย]
+   - `emphasis` 3–10 คำ **สะกดตรงกับข้อความใน transcript_overrides** (คำตอบ/ตัวเลข/คำสำคัญ) → สีเน้น + เสียง + ซูม punch
+   - `cards` สำหรับคำนามธรรม (`at` = คำที่พูด; ระบบวางโซนบนเหนือศีรษะอัตโนมัติ 760x400 → 684x360 → 570x300 → เต็มจอเป็นทางสุดท้าย) — items = [อีโมจิ, ป้าย]
    - `broll` ถ้าผู้ใช้แนบไฟล์ภาพ/คลิป (`mode` pip|full)
    - `cta` + `disclaimer` (สุขภาพ/การเงิน) · `skip` = ช่วงพูดผิด/ไม่จำเป็นที่ระบบไม่เจอ
    - override สไตล์ได้ เช่น `"captions": {"highlight": "#FFE600", "y": 1180}` ถ้าเรฟต่างจาก preset
@@ -43,5 +43,5 @@ FINAL.mp4 · ปก (เฟรม hook) · captions.srt · cue_sheet.tsv · แ�
 ตอบตามโครงสร้าง 12 หัวข้อ (skill video-clip-analysis) เมื่อผู้ใช้ขอแผนละเอียด
 
 ## ข้อจำกัดที่ต้องบอก
-ถอดเสียงไทยด้วย Whisper small อาจผิดคำ (แก้ในขั้น 3.2) · OCR เรฟประมาณขนาดฟอนต์คร่าว ๆ (ยืนยันด้วยตาจาก ref_sheet) · ไม่มี B-roll stock ถ้าผู้ใช้ไม่แนบ (ใช้การ์ดวาดแทน) · ฟังเสียงเองไม่ได้ ให้ผู้ใช้ฟังรอบสุดท้าย
+ถอดเสียงไทยด้วย Whisper small ผิดคำบ่อย → ต้องทำ transcript_overrides ทุกคลิป (ขั้น 3.2) · OCR เรฟประมาณขนาดฟอนต์คร่าว ๆ (ยืนยันด้วยตาจาก ref_sheet) · ไม่มี B-roll stock ถ้าผู้ใช้ไม่แนบ (ใช้การ์ดวาดแทน) · ฟังเสียงเองไม่ได้ ให้ผู้ใช้ฟังรอบสุดท้าย
 อ้างอิงงานวิจัย: `.claude/skills/trend-research/references/ai-video-editing-2026-11.md`

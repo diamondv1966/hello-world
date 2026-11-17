@@ -231,3 +231,29 @@ git bundle create video-production-system.bundle 496bb6d..HEAD           # ส�
 - `presets/user_settings.json`: automation_level 1/2/3 (ค่าเริ่มต้น 2), default_preset `thai-clear`, knobs 10 ตัว, qa thresholds (margin 24 px, face pad 35 %, ASR gap -35 dBFS ≥2 s)
 - Visual QA Protocol: `artifacts/qa/audio_diagnostics.png` + `contact_sheet.png` ทุก render
 - preset ส่วนตัว: `tools/make_user_preset.py <ref.mp4> <name>` → `presets/user/<name>.json` → ใช้ `edit_like.sh <clip> user/<name> <project>`
+
+---
+
+## 15. auto_edit v2 + ผลทดสอบคลิปพูดไทยจริง (2026-11-17, คลิป "9 สัญญาณ" SHA bf61fbfd…)
+
+**Pipeline ใหม่ (โมดูลใน `tools/vt/`)**: `asr.transcribe` (chunk 20–30 วิ + VAD + re-run ช่องว่าง) → `transcript_overrides` → `dedup.find_retakes/plan_cuts` → `face.track` + หน้าต่างซูมตามหน้า → `layout` (วางการ์ด/ซับ) → render → `qa_visual` (2 ภาพ) → `pipeline_manifest.json` ทุกขั้น
+**ผลจริง**: 60.6 → 53.0 วิ · -14.0 LUFS · peak -1.9 dBFS · ASR ครอบคลุม 3–57 วิ (ช่องว่างสูงสุด 0.62 วิ, uncovered 0) · จับหน้า 100 % · การ์ด 6 ใบ (card 4 / card_small 2) · collision_count 0 (รวม overlays) · render ~160 วิ
+
+**บทเรียนใหม่ (ต่อจากหัวข้อ 8)**
+18. **ASS `Spacing` ≠ 0 ทำวรรณยุกต์ที่ซ้อนบนสระบนหาย** ("เสี่ยง"→"เสียง", "เพื่อน"→"เพือน") กับ KanitXB/libass → **Spacing=0 ทุกสไตล์ ห้าม `\fsp`** · เทสต์ `test_thai_marks.py` · คลิปเก่าทุกตัวก่อนวันนี้มีบั๊กนี้
+19. ตัวนับ collision ต้องรวม **ทุกสิ่งที่วาดบนจอ** (hook/CTA/คำเตือน = `overlays`) — รอบแรกรายงาน 0 ทั้งที่ CTA ทับซับ 2.4 วิ; QA ด้วยภาพ + ผู้ตรวจอิสระ (Opus) จับได้
+20. กรอบหน้า +35 % ที่ซูม 1.0–1.14 กินพื้นที่ y≈510–1180 → การ์ด 400 px ลงได้เฉพาะ **โซนบน y 140–540**; CTA/hook ใช้โซนบนเช่นกัน; ซับ y คงที่ทั้งคลิป (≤1360) + คำเตือนเล็กที่ y 1428
+21. Whisper small ไทยผิดคำมาก (เช่น "แมกมิเศียม") → `transcript_overrides` กระจายตัวอักษรเฉพาะช่วงที่มีเสียง (ข้ามช่วงเงียบ) ไม่งั้นคำตกในช่วงที่ถูกตัด
+22. สัญญาดัชนี: `segments[].i1` = exclusive (`words[i0:i1]`) ทุกโมดูล; token ตัวเลข "7." ไม่ใช่จบประโยค
+23. โควตา 5 ชม.: subagent ที่ชนลิมิตจะหยุด แต่งานในไฟล์ยังอยู่ → commit WIP + `SendMessage` ให้ทำต่อ
+24. agent ที่เพิ่งสร้างไฟล์ใช้ชื่อจริงได้หลังเซสชันโหลดใหม่; ระหว่างนั้นใช้ general-purpose + model
+
+**วิเคราะห์เรฟ (ทดสอบกับคลิปที่รู้ค่าจริง: ฟอนต์ 80, karaoke 4 คำ, ซูม 1.0–1.14)**
+| ค่า | วัดได้ | สรุป |
+|---|---|---|
+| ขนาดฟอนต์ | 76 | ✅ ใช้ได้ (ความสูง glyph จริงผ่าน Pillow, probe "กาบ") |
+| ตำแหน่งซับ y / สีไฮไลต์ / จำนวนคัต | 1373 / #70D0F0 / 18 | ✅ |
+| ช่วงซูม | 1.21 | ⚠️ สูงไป (รวม drift + โน้มตัว) |
+| คำต่อซับ / style | 1 / pop | ❌ OCR อ่านซับคาราโอเกะที่มีสีไฮไลต์ได้ไม่ครบ → ยังต้องยืนยันด้วยตาจาก `ref_sheet.jpg` |
+
+**ยังไม่ได้พิสูจน์**: ตัดเทคซ้ำกับคลิปไทยจริงที่มีเทคซ้ำ (คลิปทดสอบไม่มี) · B-roll เต็มจอ/cut-away (เส้นทาง broll_full ไม่ถูกเรียกในรอบสุดท้าย; pip ทดสอบผ่านในรอบก่อน) · คลิปแนวนอน · เสียงผู้ชาย/หลายคน

@@ -13,7 +13,7 @@ transcribe(audio16k: np.ndarray, lang: str = "th") -> dict
   `word_timestamps=True, condition_on_previous_text=False, vad_filter=True, vad_parameters={"min_silence_duration_ms":400,"speech_pad_ms":250}`
 - Thai words: token chars → per-char times → pythainlp `newmm` words (see current `vt_lib.transcribe_words`)
 - gap check: windows where RMS > -35 dBFS for ≥ 2 s but no word → re-transcribe that span alone (pad 0.3 s); report leftovers in `uncovered_spans`
-- segments: split at pauses > 0.45 s or sentence-final particles (ค่ะ คะ ครับ นะคะ) / . ! ?
+- segments: split at pauses > 0.45 s or sentence-final particles (ค่ะ คะ ครับ นะคะ) / . ! ? (not numeric tokens like "7."); **i1 is exclusive** → words[i0:i1]
 - model: `vt_lib._model()` (Whisper small in assets — never download at runtime)
 
 ## tools/vt/dedup.py — owner 04-thai-dedup-cutter
@@ -56,3 +56,9 @@ contact_sheet(project_dir, out_png)       # frames at strongest zooms / card sta
 
 ## tools/auto_edit.py (integration) — owner 07-ffmpeg-render-engineer
 reads preset + `presets/user_settings.json` + project `config.json`; calls asr → dedup → face → layout → render → qa_visual; writes manifest at every stage.
+
+## Manifest additions (v2)
+- `overlays`: [{kind: hook|cta|cta_sub|disclaimer, t0, t1, bbox}] — counted in `qa.collision_count` (overlay∩caption gap<24 px; disclaimer 12 px; hook/cta∩face) and drawn yellow on the contact sheet
+- `qa`: collision_count, collision_count_layout, collision_count_visual, overlay_collisions, caption_face_soft_overlaps, caption_y, asr_uncovered_s, lufs, peak, duration, render_s, images
+- config `transcript_overrides`: [{s, e, text}] corrected Thai text per source span (applied after ASR, before dedup/captions)
+- ASS rule: **Spacing=0 in every style, never `\fsp`** (Thai mark-to-mark positioning)
