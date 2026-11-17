@@ -251,5 +251,5 @@ def mix_master(video_in, music_wav, sfx_wav, out, music_vol=0.095, sfx_vol=0.45,
     J = json.loads(err[err.rfind("{"):err.rfind("}") + 1])
     ln = (f"loudnorm=I=-14:TP=-1.5:LRA=11:measured_I={J['input_i']}:measured_TP={J['input_tp']}:measured_LRA={J['input_lra']}:"
           f"measured_thresh={J['input_thresh']}:offset={J['target_offset']}:linear=true")
-    run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", MIX + f",{ln},alimiter=limit=0.86:level=false,aresample=48000[a]",
+    run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", MIX + f",{ln},alimiter=limit=0.80:level=false,aresample=48000[a]",
          "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "256k", "-movflags", "+faststart", out])
