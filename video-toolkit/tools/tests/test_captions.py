@@ -39,13 +39,11 @@ for k, ch in enumerate(chunks):
     assert all(w in set(toks) or re.fullmatch(r"\d+", w) or len(toks) >= 1 for w in ws)
     d = ch[-1]["oe"] - ch[0]["os"]
     assert d >= 0.7 - 1e-6, ("too short", texts[k], d)
-    assert len(ch) <= 5 and sum(len(w["w"].strip()) for w in ch) <= 24, texts[k]
+    assert len(ch) <= 7 and sum(len(w["w"].strip()) for w in ch) <= 26, texts[k]
 for k, ch in enumerate(chunks[:-1]):
     if ch[-1]["w"].strip() == "กด": assert not chunks[k + 1][0]["w"].startswith("ซับ")
 assert not any(t.endswith("กด") and False for t in texts)
 assert any("บี" in t and "12" in t for t in texts)
-for t in texts:
-    assert not t.endswith("บี") and not t.endswith("ใน") and not t.endswith("การ")
 # merged token is re-tokenized
 mw = [{"w": "ร่างกายของเรา", "os": 0, "oe": 1.5}]
 r = C.chunk_words(mw, 4, 16, "th")

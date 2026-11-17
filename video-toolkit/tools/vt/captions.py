@@ -3,7 +3,7 @@ import functools, math, re
 
 FINAL_PART = ("ค่ะ", "คะ", "ครับ", "นะคะ", "นะครับ")
 NO_AFTER = {"กด", "ใน", "การ", "ของ", "ที่", "และ", "กับ", "ว่า", "เป็น", "มี", "ให้", "จะ", "ได้", "ไม่", "ความ", "อย่าง", "ขาด", "เสี่ยง"}
-NO_BEFORE = set(FINAL_PART) | {"ๆ", "ด้วย", "เลย"}
+NO_BEFORE = set(FINAL_PART) | {"นะ", "ๆ", "ด้วย", "เลย"}
 VITAMIN = {"บี", "ซี", "ดี", "เอ", "เค", "B", "C", "D", "A", "K"}
 MIN_DUR = 0.7
 _NUM = re.compile(r"\d+(?:[./]\d+)?")
@@ -13,20 +13,38 @@ def _t(w): return w["w"].strip()
 def _isnum(w): return bool(_NUM.fullmatch(_t(w)))
 
 
-EXTRA_WORDS = ("ซับสไครบ์", "สไครบ์", "ไลก์", "แชร์", "นะคะ", "นะครับ", "แมกนีเซียม", "ออกซิเจน", "วิตามิน", "คอมเมนต์", "ธาตุเหล็ก")
+EXTRA_WORDS = ("ซับสไครบ์", "สไครบ์", "ไลก์", "แชร์", "นะคะ", "นะครับ", "แมกนีเซียม", "ออกซิเจน", "วิตามิน", "คอมเมนต์", "ธาตุเหล็ก", "แสดงว่า")
+
+
+EXCLUDE_WORDS = ("โรคความดันโลหิตสูง",)  # long compounds that would hide breakable phrase boundaries
 
 
 @functools.lru_cache(None)
 def _trie():
     from pythainlp.util import Trie
     from pythainlp.corpus import thai_words
-    return Trie(set(thai_words()) | set(EXTRA_WORDS))
+    return Trie((set(thai_words()) | set(EXTRA_WORDS)) - set(EXCLUDE_WORDS))
+
+
+def _raw(s):
+    from pythainlp.tokenize import word_tokenize
+    return [x for x in word_tokenize(s, engine="newmm", custom_dict=_trie(), keep_whitespace=True) if x != ""]
 
 
 def tokenize(s):
-    """PyThaiNLP newmm words (default dictionary + a few protected loan words)."""
-    from pythainlp.tokenize import word_tokenize
-    return tuple(x for x in word_tokenize(s, engine="newmm", custom_dict=_trie(), keep_whitespace=True) if x != "")
+    """PyThaiNLP newmm words (default dictionary + protected loan words); sentence-final
+    particles glued to the following word by the greedy matcher ("คะใน") are split off."""
+    out = []
+    for t in _raw(s):
+        for p_ in ("ค่ะ", "คะ", "ครับ"):
+            if t.startswith(p_) and len(t) > len(p_):
+                out.append(p_); out += _raw(t[len(p_):]); break
+        else: out.append(t)
+    k = 0; res = []
+    while k < len(out):  # "นะ" + particle -> one token
+        if out[k] == "นะ" and k + 1 < len(out) and out[k + 1] in ("คะ", "ครับ"): res.append("นะ" + out[k + 1]); k += 2
+        else: res.append(out[k]); k += 1
+    return tuple(res)
 
 
 _newmm = functools.lru_cache(None)(tokenize)
@@ -95,6 +113,7 @@ def _partition(g, max_words, max_chars):
         ow, oc = max(0, nw - max_words), max(0, chars - max_chars)
         if ow or oc: c += (2 * ow + 0.6 * oc) * (1 if end else 2)
         if nw < 2 and chars < 6: c += 4
+        if nw > 2 and _isnum(g[j - 2]) and _t(g[j - 1]) in FINAL_PART: c += 5  # list marker "9 ค่ะ" leads the next chunk
         dur = g[j - 1]["oe"] - g[i]["os"]
         if dur < MIN_DUR: c += 12 + 20 * (MIN_DUR - dur)
         if j < n:

@@ -252,8 +252,10 @@ def dropped(ts_): return any(a_ <= ts_ <= b_ for a_, b_ in content_cuts)
 ow = [dict(w, os=m(w["s"]), oe=max(m(w["e"]), m(w["s"]) + 0.12)) for w in words if not dropped((w["s"] + w["e"]) / 2)]
 if LANG == "th":  # numbers need a space after them in Thai captions ("4 ผมร่วง")
     import re as _re
-    for w in ow:
-        if _re.fullmatch(r"\d+(?:[./]\d+)?", w["w"]): w["w"] += " "
+    for k_, w in enumerate(ow):
+        if _re.fullmatch(r"\d+(?:[./]\d+)?", w["w"]):
+            w["w"] += " "
+            if k_ and ow[k_ - 1]["w"].strip() in ("บี", "ซี", "ดี", "เอ", "เค"): ow[k_ - 1]["w"] = ow[k_ - 1]["w"].rstrip() + " "  # "บี 12"
 PART = {"ค่ะ", "คะ", "ครับ", "นะ", "จ้ะ", "จ้า"}
 if C.get("drop_particles"): ow = [w for w in ow if w["w"] not in PART]
 from vt import captions as vcap
