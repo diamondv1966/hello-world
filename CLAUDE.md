@@ -3,6 +3,8 @@
 ระบบตัดต่อคลิปสั้นแนวตั้ง (TikTok/Reels) ภาษาไทยอัตโนมัติ · เครื่องมือ `video-toolkit/` · Agents `.claude/agents/` · Skills `.claude/skills/`
 เอกสารหลัก: `video-toolkit/docs/KNOWLEDGE_BASE.md` · สัญญาโมดูล `video-toolkit/docs/INTERFACES.md` · สคีมากลาง `video-toolkit/docs/schemas/pipeline_manifest.schema.json`
 
+**อ่านก่อนแก้โค้ด/เขียน config/ส่งงาน:** skill `01-video-d-skill-playbook` (กฎ ❌/✅ จากความล้มเหลวจริง + checklist ก่อนส่ง)
+
 ## 1. ลำดับบังคับ (ทุกงาน)
 1. เตรียมระบบ: `cd video-toolkit && ./setup.sh && ./check_system.sh` → ต้องได้ "ระบบพร้อมใช้งานแล้ว"
 2. รับคลิป: `tools/new_project.sh <clip> <name>` → แจ้ง **ชื่อไฟล์ + SHA-256**; registry เตือนซ้ำ → แจ้งผู้ใช้ทันที
