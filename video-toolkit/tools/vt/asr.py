@@ -137,10 +137,10 @@ def _segments(words, lang):
             brk = words[i + 1]["s"] - w["e"] > PAUSE_SPLIT
         if not brk:
             t = w["w"]
-            brk = t.endswith((".", "!", "?")) or (lang == "th" and t in THAI_FINAL)
+            brk = (t.endswith((".", "!", "?")) and not t.rstrip(".!?").isdigit()) or (lang == "th" and t in THAI_FINAL)
         if brk:
             seg = words[i0:i + 1]
-            segs.append({"text": join.join(x["w"] for x in seg), "s": seg[0]["s"], "e": seg[-1]["e"], "i0": i0, "i1": i})
+            segs.append({"text": join.join(x["w"] for x in seg), "s": seg[0]["s"], "e": seg[-1]["e"], "i0": i0, "i1": i + 1})  # exclusive: words[i0:i1]
             i0 = i + 1
     return segs
 
