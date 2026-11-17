@@ -1,9 +1,12 @@
 """Auto-edit a vertical talking-head clip from a style preset (+ optional reference profile and creative config).
 
-python3 -I tools/auto_edit.py projects/<name> --preset clean-pastel [--config projects/<name>/config.json]
-                              [--ref projects/<name>/ref/style_profile.json] [--plan-only]
+python3 -I tools/auto_edit.py projects/<name> [--preset thai-clear|path.json] [--config projects/<name>/config.json]
+                              [--ref projects/<name>/ref/style_profile.json] [--plan-only] [--approved]
 
 project dir must contain src.mp4 (tools/new_project.sh makes it).
+Settings layering: preset (default = user_settings.default_preset) <- user_settings.knobs <- ref preset_overrides <- config.json.
+automation_level (user_settings, or config "automation_level"): 1 auto, 2 creative-assisted (uses config.json),
+3 = write plan + manifest + report and STOP unless --approved.
 config.json (optional, written by Claude after analysis):
 {
   "language": "th",
@@ -18,34 +21,70 @@ config.json (optional, written by Claude after analysis):
   "music": {"mood": "bright"}, "captions": {...}            # any preset key can be overridden here
 }
 "at" = first occurrence of that text in the transcript (or a number = source seconds).
-Outputs in the project: words.json, plan.json, captions.ass, sfx_track.wav, music.wav, FINAL.mp4, qa.jpg, report.md
+Outputs in the project: asr.json, face_track.json, pipeline_manifest.json, plan.json, captions.ass, captions.srt,
+sfx_track.wav, music.wav, FINAL.mp4, qa.jpg, artifacts/qa/*.png, report.md
 """
-import sys, os, json, math, copy, argparse, subprocess, functools
+import sys, os, json, math, copy, argparse, subprocess, functools, hashlib, time
 import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import vt_lib as L
+from vt import asr as vasr, dedup, face, layout, qa_visual
 
+T_START = time.time()
 ap = argparse.ArgumentParser()
-ap.add_argument("project"); ap.add_argument("--preset", default="clean-pastel"); ap.add_argument("--config")
+ap.add_argument("project"); ap.add_argument("--preset", default=None); ap.add_argument("--config")
 ap.add_argument("--ref"); ap.add_argument("--plan-only", action="store_true")
+ap.add_argument("--approved", action="store_true", help="automation_level 3: plan approved by the user -> render")
 args = ap.parse_args()
 P = os.path.abspath(args.project); SRC = f"{P}/src.mp4"
 W, H, FPS = 1080, 1920, 30
+SW, SH = 2160, 3840  # working scale for smooth zoompan
 
 def deep_update(a, b):
     for k, v in (b or {}).items():
         if isinstance(v, dict) and isinstance(a.get(k), dict): deep_update(a[k], v)
         else: a[k] = v
     return a
-pp = args.preset if args.preset.endswith(".json") else f"{L.ROOT}/presets/{args.preset}.json"
+
+# ------------------------------------------------------------- 0. settings layering
+US = json.load(open(f"{L.ROOT}/presets/user_settings.json"))
+preset_arg = args.preset or US.get("default_preset", "thai-clear")
+if preset_arg.endswith(".json") or "/" in preset_arg:
+    pp = preset_arg if os.path.isabs(preset_arg) or os.path.exists(preset_arg) else f"{L.ROOT}/{preset_arg}"
+else: pp = f"{L.ROOT}/presets/{preset_arg}.json"
 S = json.load(open(pp))
+K = US.get("knobs", {})
+if "1_cut_max_gap" in K: S["cut"]["max_gap"] = K["1_cut_max_gap"]
+if "7_max_len_s" in K: S["cut"]["max_len"] = K["7_max_len_s"]
+if "2_zoom" in K: deep_update(S["zoom"], K["2_zoom"])
+if "3_captions" in K: deep_update(S["captions"], K["3_captions"])
+if "5_music" in K: deep_update(S["music"], K["5_music"])
+SFX_ON, SFX_VOL = True, 0.45
+if "4_sfx" in K:
+    k4 = K["4_sfx"]; SFX_ON = bool(k4.get("enabled", True)); SFX_VOL = k4.get("level", SFX_VOL)
+    if k4.get("cut_whoosh") is False: S["sfx"]["cut_whoosh"] = None
 CFG = json.load(open(args.config)) if args.config else (json.load(open(f"{P}/config.json")) if os.path.exists(f"{P}/config.json") else {})
 REF = json.load(open(args.ref)) if args.ref else None
 if REF and REF.get("preset_overrides"): deep_update(S, REF["preset_overrides"])
 deep_update(S, {k: v for k, v in CFG.items() if k in S})
-LANG = CFG.get("language", "th")
+LANG = CFG.get("language", US.get("language", "th"))
+LEVEL = int(CFG.get("automation_level", US.get("automation_level", 2)))
 info = L.probe(SRC)
-report = [f"# Auto-edit report — {os.path.basename(P)}", f"preset: **{S['name']}**" + (f" + ref `{args.ref}`" if REF else ""), ""]
+SRC_W, SRC_H, dur = info["w"], info["h"], info["duration"]
+report = [f"# Auto-edit report — {os.path.basename(P)}", f"preset: **{S['name']}** · automation level {LEVEL}" + (f" + ref `{args.ref}`" if REF else ""), ""]
+
+# ------------------------------------------------------------- manifest
+def sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for blk in iter(lambda: f.read(1 << 20), b""): h.update(blk)
+    return h.hexdigest()
+M = {"version": 1, "project": os.path.basename(P),
+     "src": {"path": SRC, "sha256": sha256(SRC), "duration": dur, "w": SRC_W, "h": SRC_H, "fps": info["fps"]},
+     "settings": {"preset": S["name"], "automation_level": LEVEL, "language": LANG, "resolved": S},
+     "asr": {}, "cuts": [], "keeps": [], "segments": [], "captions": [], "cards": [], "broll": [], "qa": {}, "outputs": {}}
+def save_manifest(): json.dump(M, open(f"{P}/pipeline_manifest.json", "w"), ensure_ascii=False, indent=1)
+save_manifest()
 
 # ------------------------------------------------------------- 1. analysis (cached)
 def cached(name, fn):
@@ -53,35 +92,60 @@ def cached(name, fn):
     if os.path.exists(f): return json.load(open(f))
     v = fn(); json.dump(v, open(f, "w"), ensure_ascii=False); return v
 audio = L.load_audio16k(SRC)
-words = cached("words.json", lambda: L.transcribe_words(audio, LANG))
-sil = cached(f"silences_{S['cut']['max_gap']}.json", lambda: L.silences(SRC, -33, S["cut"]["max_gap"]))
-faces = cached("faces.json", lambda: L.face_track(SRC))
+ASR = cached("asr.json", lambda: vasr.transcribe(audio, LANG))
+max_gap, pad, end_pad = S["cut"]["max_gap"], S["cut"]["pad"], S["cut"]["end_pad"]
+sil = cached(f"silences_{max_gap}.json", lambda: L.silences(SRC, -33, max_gap))
+words, segments = ASR["words"], ASR["segments"]
+OVR = CFG.get("transcript_overrides") or []
+if OVR:  # corrected Thai text replaces mis-heard Whisper words (times spread by character length)
+    import re
+    from pythainlp.tokenize import word_tokenize
+    def toks_of(text):
+        out = []
+        for t in word_tokenize(text, engine="newmm", keep_whitespace=False):
+            if not t.strip(): continue
+            out += [x for x in re.findall(r"\d+(?:[./]\d+)?|\D+", t) if x.strip()] if re.search(r"\d", t) and not t.isdigit() else [t]
+        return [t for t in out if t.strip()]
+    words = [dict(w) for w in words]; bounds = []
+    for o_ in sorted(OVR, key=lambda o: o["s"]):
+        inside = [w for w in words if o_["s"] <= (w["s"] + w["e"]) / 2 <= o_["e"]]
+        a_, b_ = (inside[0]["s"], inside[-1]["e"]) if inside else (o_["s"], o_["e"])
+        words = [w for w in words if not any(w is x for x in inside)]
+        tk = toks_of(o_["text"]); tot = sum(len(t) for t in tk) or 1; cum = 0; new_w = []
+        voiced, t_ = [], a_  # spread characters over voiced time only (silences inside the span are skipped)
+        for sa, sb in sorted(sil):
+            if sb <= a_ or sa >= b_: continue
+            if sa > t_: voiced.append((t_, min(sa, b_)))
+            t_ = max(t_, sb)
+        if t_ < b_: voiced.append((t_, b_))
+        if not voiced: voiced = [(a_, b_)]
+        V = sum(y - x for x, y in voiced)
+        def at_v(f):
+            r = f * V
+            for x, y in voiced:
+                if r <= y - x + 1e-9: return x + r
+                r -= y - x
+            return voiced[-1][1]
+        for t in tk:
+            new_w.append({"w": t, "s": round(at_v(cum / tot), 3), "e": round(at_v((cum + len(t)) / tot), 3)}); cum += len(t)
+        words += new_w; bounds.append(b_)
+    words.sort(key=lambda w: w["s"])
+    THAI_FINAL = ("นะคะ", "นะครับ", "ค่ะ", "คะ", "ครับ"); segments, i0 = [], 0
+    for i, w in enumerate(words):
+        last = i == len(words) - 1; t = w["w"]
+        brk = last or words[i + 1]["s"] - w["e"] > 0.45 or any(abs(w["e"] - bb) < 1e-3 for bb in bounds) \
+            or (t.endswith((".", "!", "?")) and not re.fullmatch(r"\d+[.]?", t)) or (LANG == "th" and t in THAI_FINAL)
+        if brk:
+            sg = words[i0:i + 1]; segments.append({"text": ("" if LANG == "th" else " ").join(x["w"] for x in sg), "s": sg[0]["s"], "e": sg[-1]["e"], "i0": i0, "i1": i + 1}); i0 = i + 1
+    ASR = dict(ASR, words=words, segments=segments, overridden=True, overrides=OVR)
+M["asr"] = ASR; save_manifest()
+ftrack = cached("face_track.json", lambda: face.track(SRC))
 src_col = cached("colour.json", lambda: L.colour_stats(SRC))
 
 # ------------------------------------------------------------- 2. cut plan
-dur = info["duration"]; pad = S["cut"]["pad"]
-cuts = []  # (a, b, reason) source spans to remove
-for a, b in sil:
-    if a <= 0.05: cuts.append((0.0, max(0.0, b - pad), "เงียบช่วงต้นคลิป"))
-    elif b >= dur - 0.05: cuts.append((min(dur, a + S["cut"]["end_pad"]), dur, "เงียบท้ายคลิป"))
-    elif b - a >= S["cut"]["max_gap"]: cuts.append((a + pad, b - pad, f"ช่วงเงียบ {b-a:.2f} วิ"))
-if S["cut"].get("remove_retakes") and len(words) > 8:
-    norm = [w["w"].strip().lower() for w in words]; n = 4 if LANG != "th" else 5
-    for i in range(len(words) - n):
-        for j in range(i + n, min(len(words) - n, i + 40)):
-            if norm[i:i + n] == norm[j:j + n] and words[j]["s"] - words[i + n - 1]["e"] < 6:
-                cuts.append((words[i]["s"] - pad, words[j]["s"] - pad, f"พูดซ้ำ: “{''.join(norm[i:i+n]) if LANG=='th' else ' '.join(norm[i:i+n])}”")); break
-for a, b in CFG.get("skip", []): cuts.append((a, b, "ตัดตาม config (คำผิด/ไม่จำเป็น)"))
-cuts.sort(); merged = []
-for a, b, r in cuts:
-    if b - a <= 0.02: continue
-    if merged and a <= merged[-1][1] + 0.02: merged[-1] = (merged[-1][0], max(b, merged[-1][1]), merged[-1][2] + " + " + r)
-    else: merged.append((a, b, r))
-keeps, t = [], 0.0
-for a, b, _ in merged:
-    if a - t > 0.08: keeps.append([t, a])
-    t = max(t, b)
-if dur - t > 0.08: keeps.append([t, dur])
+retakes = dedup.find_retakes(segments, words, LANG) if (S["cut"].get("remove_retakes") and len(words) > 8) else []
+merged, keeps = dedup.plan_cuts(dur, sil, retakes, CFG.get("skip", []), max_gap, pad, end_pad)
+M["cuts"], M["keeps"] = merged, keeps; save_manifest()
 
 def m(ts):  # source -> output time
     o = 0.0
@@ -91,70 +155,74 @@ def m(ts):  # source -> output time
         o += b - a
     return o
 TOTAL = sum(b - a for a, b in keeps)
-def find_at(at):
-    if isinstance(at, (int, float)): return float(at)
-    text = "".join(w["w"] for w in words) if LANG == "th" else " ".join(w["w"] for w in words)
-    k = text.find(at)
-    if k < 0: return None
+def jtext(): return "".join(w["w"] for w in words) if LANG == "th" else " ".join(w["w"] for w in words)
+def word_at_char(k):
     pos = 0
     for w in words:
         pos += len(w["w"]) + (0 if LANG == "th" else 1)
         if pos > k: return w["s"]
     return None
+def find_at(at):
+    if isinstance(at, (int, float)): return float(at)
+    k = jtext().find(at)
+    return None if k < 0 else word_at_char(k)
 emph = CFG.get("emphasis", [])
 def is_kept(ts): return any(a <= ts <= b for a, b in keeps)
 
-# sub-segments with zoom levels (alternate per segment, punch on emphasis words)
 emph_times = []
 if emph:
-    joined = "".join(w["w"] for w in words) if LANG == "th" else " ".join(w["w"] for w in words)
+    joined = jtext()
     for e in emph:
         k = joined.find(e)
         while k >= 0:
-            pos = 0
-            for w in words:
-                pos += len(w["w"]) + (0 if LANG == "th" else 1)
-                if pos > k: emph_times.append(w["s"]); break
+            t_ = word_at_char(k)
+            if t_ is not None: emph_times.append(t_)
             k = joined.find(e, k + len(e))
-subs = []
+subs = []  # (a, b, zoom level) source spans
 for idx, (a, b) in enumerate(keeps):
     pts = [a] + sorted(t for t in emph_times if a + 0.4 < t < b - 0.4) + [b]
     for j in range(len(pts) - 1):
         lv = S["zoom"]["levels"][idx % len(S["zoom"]["levels"])] + (S["zoom"]["emphasis_punch"] if j > 0 else 0)
         subs.append((pts[j], pts[j + 1], lv))
-report += [f"ความยาวต้นฉบับ {dur:.1f} วิ → หลังตัด **{TOTAL:.1f} วิ** ({len(keeps)} ช่วง, {len(merged)} จุดตัด)"]
+n_retake = sum(1 for c in merged if c["kind"] == "retake")
+report += [f"ความยาวต้นฉบับ {dur:.1f} วิ → หลังตัด **{TOTAL:.1f} วิ** ({len(keeps)} ช่วง, {len(merged)} จุดตัด, พูดซ้ำที่ตัด {n_retake})"]
 if TOTAL > S["cut"]["max_len"]: report.append(f"⚠️ ยาวเกิน {S['cut']['max_len']} วิ → เสนอเวอร์ชันสั้น (ให้ Claude เลือกช่วงตัดเพิ่มใน config.skip)")
-report += ["", "## จุดตัด (เวลาต้นฉบับ)", "| ตัด | เหตุผล |", "|---|---|"] + [f"| {a:.2f}–{b:.2f} | {r} |" for a, b, r in merged]
+report += ["", "## จุดตัด (เวลาต้นฉบับ)", "| ตัด | ชนิด | เหตุผล |", "|---|---|---|"] + [f"| {c['a']:.2f}–{c['b']:.2f} | {c['kind']} | {c['reason']} |" for c in merged]
 
-# ------------------------------------------------------------- 3. framing (face aware)
-vertical = info["w"] / info["h"] < 0.6
-fx_all = [f[1] for f in faces if f[1] is not None]
-crop = None
-if not vertical:  # crop to 9:16 around median face x
-    cw = int(info["h"] * 9 / 16) // 2 * 2; cx = np.median(fx_all) if fx_all else info["w"] / 2
-    x0 = int(np.clip(cx - cw / 2, 0, info["w"] - cw)); crop = (cw, info["h"], x0, 0)
-    report.append(f"ต้นฉบับแนวนอน → crop 9:16 ตามตำแหน่งหน้า (x={x0})")
-SW, SH = 2160, 3840  # working scale for smooth zoompan
+# ------------------------------------------------------------- 3. framing (face aware; windows in source px == render geometry)
+FACE_Y = S["zoom"]["face_y"]
+real_boxes = [p for p in ftrack if p["box"]]
 def face_for(a, b):
-    fs = [f for f in faces if a - 0.25 <= f[0] <= b + 0.25 and f[1] is not None]
-    if not fs: return None
-    cx, cy, fh = np.median([f[1] for f in fs]), np.median([f[2] for f in fs]), np.median([f[3] for f in fs])
-    if crop: cx -= crop[2]
-    sx = SW / (crop[0] if crop else info["w"]); sy = SH / info["h"]
-    return cx * sx, cy * sy, fh * sy
-plan_segments = []
+    bs = [p["box"] for p in real_boxes if a - 0.25 <= p["t"] <= b + 0.25]
+    if bs: return [float(np.median([x[i] for x in bs])) for i in range(4)]
+    if not real_boxes: return None
+    mid = (a + b) / 2; return list(min(real_boxes, key=lambda p: abs(p["t"] - mid))["box"])
+def fit(win, strip):  # shift window inside the pre-crop strip
+    x = min(max(win[0], strip[0]), strip[0] + strip[2] - win[2]); y = min(max(win[1], strip[1]), strip[1] + strip[3] - win[3])
+    return [x, y, win[2], win[3]]
+plan_segments, oc = [], 0.0
 for a, b, lv in subs:
-    f = face_for(a, b); z0 = lv; z1 = lv + (S["zoom"]["drift"] if S["zoom"]["mode"] != "static" else 0)
-    plan_segments.append({"a": a, "b": b, "z0": round(z0, 3), "z1": round(z1, 3), "face": None if f is None else [round(v) for v in f]})
-face_ok = sum(1 for s in plan_segments if s["face"]) / max(1, len(plan_segments))
-report.append(f"ตรวจพบใบหน้าใน {face_ok*100:.0f}% ของช่วง → จัดเฟรมให้หน้าอยู่ที่ {S['zoom']['face_y']*100:.0f}% ของความสูง")
+    fb = face_for(a, b); z0 = lv; z1 = lv + (S["zoom"]["drift"] if S["zoom"]["mode"] != "static" else 0)
+    w1 = face.window_for(fb, SRC_W, SRC_H, 1.0, FACE_Y)
+    strip = [int(round(w1[0])), int(round(w1[1])), int(round(w1[2])), int(round(w1[3]))]
+    win0 = fit(face.window_for(fb, SRC_W, SRC_H, z0, FACE_Y), strip); win1 = fit(face.window_for(fb, SRC_W, SRC_H, z1, FACE_Y), strip)
+    trk = [{"t": (a + b) / 2, "box": fb}] if fb and not any(a <= p["t"] <= b and p["box"] for p in ftrack) else ftrack
+    fo = face.segment_face_out(trk, a, b, win0, win1)
+    plan_segments.append({"a": a, "b": b, "oa": oc, "ob": oc + (b - a), "z0": round(z0, 3), "z1": round(z1, 3),
+                          "crop0": [round(v, 2) for v in win0], "crop1": [round(v, 2) for v in win1], "strip": strip,
+                          "face_out": None if fo is None else [round(v, 1) for v in fo]})
+    oc += b - a
+M["segments"] = plan_segments; save_manifest()
+face_ok = sum(1 for s in plan_segments if s["face_out"]) / max(1, len(plan_segments))
+report.append(f"ตรวจพบใบหน้าใน {face_ok*100:.0f}% ของช่วง → จัดเฟรมให้หน้าอยู่ที่ {FACE_Y*100:.0f}% ของความสูง" + ("" if SRC_W / SRC_H < 0.6 else " (ต้นฉบับแนวนอน → crop 9:16 ตามใบหน้า)"))
+faces_out = [{"t0": s["oa"], "t1": s["ob"], "bbox": s["face_out"]} for s in plan_segments if s["face_out"]]
 
-# ------------------------------------------------------------- 4. captions / text (ASS)
+# ------------------------------------------------------------- 4. captions / cards / layout
 def ass_col(hexs, alpha=0):
     h = hexs.lstrip("#"); return f"&H{alpha:02X}{h[4:6]}{h[2:4]}{h[0:2]}".upper()
 def ts(x): x = max(0, x); return f"{int(x//3600)}:{int(x%3600//60):02d}:{x%60:05.2f}"
 C = S["captions"]; HK = S["hook"]
-font = C["font"]; fontsdir = f"{L.A}/fonts"
+font = C["font"]; fontsdir = f"{L.A}/fonts"; FONT_PATH = f"{fontsdir}/{font}.ttf"
 border = 3 if C.get("box") else 1
 styles = [
  f"Style: Cap,{font},{C['size']},{ass_col(C['color'])},{ass_col(C['color'])},{ass_col(C.get('box') or C['outline'])},{ass_col('#000000',0x80)},0,0,0,0,100,100,1,0,{border},{C['outline_w'] if not C.get('box') else 14},{C['shadow']},2,60,60,{H-C['y']},1",
@@ -173,22 +241,15 @@ for i, line in enumerate(hook_lines):
     st = "HookA" if (i == len(hook_lines) - 1 and len(hook_lines) > 1) else "Hook"
     d = 0.25 * i
     add(st, d, hook_end, r"{\fad(120,150)\blur5\t(0,240,\blur0.5)\fscx72\fscy72\t(0,140,\fscx110\fscy110)\t(140,240,\fscx100\fscy100)}" + esc(line), 2)
-# card intervals (output time) -> captions move to alt_y
-CARDS = []
-for c in CFG.get("cards", []):
-    s0 = find_at(c["at"])
-    if s0 is None or not is_kept(s0): report.append(f"⚠️ ไม่พบคำ “{c['at']}” สำหรับการ์ด"); continue
-    o = m(s0); CARDS.append(dict(c, t0=o, t1=min(TOTAL, o + c.get("dur", 1.8))))
-BROLL = []
-for b_ in CFG.get("broll", []):
-    s0 = find_at(b_["at"])
-    if s0 is None or not os.path.exists(b_["file"]): report.append(f"⚠️ B-roll ข้าม: {b_}"); continue
-    o = m(s0); BROLL.append(dict(b_, t0=o, t1=min(TOTAL, o + b_.get("dur", 1.5))))
-busy = ([(max(0, TOTAL - 3.6), TOTAL)] if CFG.get("cta") else []) + [(c["t0"], c["t1"]) for c in CARDS] + [(b_["t0"], b_["t1"]) for b_ in BROLL if b_.get("mode", "pip") == "pip"]
-# word list in output time
-content_cuts = [(a_, b_) for a_, b_, r_ in merged if ("พูดซ้ำ" in r_ or "config" in r_)]
-def dropped(ts): return any(a_ <= ts <= b_ for a_, b_ in content_cuts)
+
+# words in output time; only words inside retake/skip cuts are dropped (silence cuts snap)
+content_cuts = [(c["a"], c["b"]) for c in merged if c["kind"] in ("retake", "skip")]
+def dropped(ts_): return any(a_ <= ts_ <= b_ for a_, b_ in content_cuts)
 ow = [dict(w, os=m(w["s"]), oe=max(m(w["e"]), m(w["s"]) + 0.12)) for w in words if not dropped((w["s"] + w["e"]) / 2)]
+if LANG == "th":  # numbers need a space after them in Thai captions ("4 ผมร่วง")
+    import re as _re
+    for w in ow:
+        if _re.fullmatch(r"\d+(?:[./]\d+)?", w["w"]): w["w"] += " "
 PART = {"ค่ะ", "คะ", "ครับ", "นะ", "จ้ะ", "จ้า"}
 if C.get("drop_particles"): ow = [w for w in ow if w["w"] not in PART]
 chunks, cur = [], []
@@ -198,9 +259,47 @@ for w in ow:
     clen = sum(len(x["w"]) for x in cur)
     if cur and (len(cur) >= C["max_words"] or clen + len(w["w"]) > C["max_chars"] or w["os"] - cur[-1]["oe"] > 0.6): flush()
     cur.append(w)
-    if w["w"].rstrip()[-1:] in ".!?" or w["w"] in ("ค่ะ", "คะ", "ครับ", "นะคะ", "นะครับ"): flush()
+    if (w["w"].rstrip()[-1:] in ".!?" and not w["w"].rstrip()[:-1].isdigit()) or w["w"] in ("ค่ะ", "คะ", "ครับ", "นะคะ", "นะครับ"): flush()
 flush()
 sep = "" if LANG == "th" else " "
+CAPS = []  # manifest captions (output time), chunk index in "ci"
+for ci, ch in enumerate(chunks):
+    a = max(ch[0]["os"], hook_end if ci == 0 and hook_lines else 0); nxt = chunks[ci + 1][0]["os"] if ci + 1 < len(chunks) else TOTAL
+    b = min(nxt, ch[-1]["oe"] + 0.5)
+    if b - a < 0.08: continue
+    text = sep.join(w["w"] for w in ch)
+    CAPS.append({"t0": round(a, 3), "t1": round(b, 3), "text": text, "ci": ci, "y": C["y"],
+                 "bbox": layout.text_bbox(text, FONT_PATH, C["size"], bottom_y=C["y"], outline=C["outline_w"])})
+
+cta = CFG.get("cta")
+CTA_T0 = max(hook_end, TOTAL - 3.6)
+CARDS = []  # drawn cards: dict(c, t0, t1, bbox, mode, scale)
+for c in CFG.get("cards", []):
+    s0 = find_at(c["at"])
+    if s0 is None or not is_kept(s0): report.append(f"⚠️ ไม่พบคำ “{c['at']}” สำหรับการ์ด"); continue
+    o = m(s0); t0, t1 = o, min(TOTAL, o + c.get("dur", 1.8))
+    pl = layout.place_card(t0, t1, (760, 400), faces_out, CAPS, safe={"top": 250})
+    CARDS.append(dict(c, t0=t0, t1=t1, bbox=pl["bbox"], mode=pl["mode"], scale=pl["scale"]))
+BROLL = []
+for b_ in CFG.get("broll", []):
+    s0 = find_at(b_["at"])
+    if s0 is None or not os.path.exists(b_["file"]): report.append(f"⚠️ B-roll ข้าม: {b_}"); continue
+    o = m(s0); t0, t1 = o, min(TOTAL, o + b_.get("dur", 1.5))
+    if b_.get("mode", "pip") == "full": bbox, mode = [0, 0, W, H], "broll_full"
+    else:
+        pl = layout.place_card(t0, t1, (736, 436), faces_out, CAPS, safe={"top": 250})
+        bbox, mode = pl["bbox"], ("broll_full" if pl["mode"] == "broll_full" else "broll_pip")
+    BROLL.append(dict(b_, t0=t0, t1=t1, bbox=bbox, mode=mode))
+obstacles = [c for c in CARDS if c["mode"] != "broll_full"] + [b_ for b_ in BROLL if b_["mode"] == "broll_pip"]
+if cta: obstacles.append({"t0": CTA_T0, "t1": TOTAL, "bbox": [60, 1120, 960, 250], "mode": "cta"})
+CAPS = layout.resolve_captions(CAPS, obstacles, faces_out)
+M["captions"] = [{k: v for k, v in c.items() if k != "ci"} for c in CAPS]
+M["cards"] = [{"t0": round(c["t0"], 3), "t1": round(c["t1"], 3), "bbox": c["bbox"], "mode": c["mode"], "scale": c["scale"], "title": c.get("title")} for c in CARDS] + \
+             [{"t0": round(b_["t0"], 3), "t1": round(b_["t1"], 3), "bbox": b_["bbox"], "mode": b_["mode"], "file": b_["file"]} for b_ in BROLL]
+M["broll"] = [{"t0": b_["t0"], "t1": b_["t1"], "file": b_["file"], "mode": b_["mode"], "bbox": b_["bbox"]} for b_ in BROLL]
+save_manifest()
+
+cap_by_ci = {c["ci"]: c for c in CAPS}
 def emph_mask(ch):
     txt = sep.join(w["w"] for w in ch); mask = [False] * len(ch)
     for e in emph:
@@ -213,10 +312,9 @@ def emph_mask(ch):
             k = txt.find(e, k + 1)
     return mask
 for ci, ch in enumerate(chunks):
-    a = max(ch[0]["os"], hook_end if ci == 0 and hook_lines else 0); nxt = chunks[ci + 1][0]["os"] if ci + 1 < len(chunks) else TOTAL
-    b = min(nxt, ch[-1]["oe"] + 0.5)
-    if b - a < 0.08: continue
-    ypos = C["alt_y"] if any(a < x1 and b > x0 - 0.05 for x0, x1 in busy) else C["y"]
+    cp = cap_by_ci.get(ci)
+    if not cp: continue
+    a, b = cp["t0"], cp["t1"]; ypos = int(cp["y"])
     pos = rf"\an2\pos(540,{ypos})"
     mask = emph_mask(ch)
     def col(i, active):
@@ -237,27 +335,31 @@ for ci, ch in enumerate(chunks):
     elif style == "phrase":
         add("Cap", a, b, "{" + pos + r"\fad(110,60)\move(540," + str(ypos + 18) + ",540," + str(ypos) + ",0,160)}" + line(None), 1)
 if CFG.get("disclaimer"): add("Disc", hook_end, TOTAL, r"{\fad(300,0)\1a&H30&}" + esc(CFG["disclaimer"]), 0)
-cta = CFG.get("cta")
 if cta:
-    c0 = max(hook_end, TOTAL - 3.6)
-    add("CTA", c0 + 0.3, TOTAL, r"{\fscx60\fscy60\t(0,200,\fscx110\fscy110)\t(200,300,\fscx100\fscy100)\t(800,1100,\fscx106\fscy106)\t(1100,1400,\fscx100\fscy100)\t(1900,2200,\fscx106\fscy106)\t(2200,2500,\fscx100\fscy100)}" + esc(cta["text"]), 3)
-    if cta.get("sub"): add("Sub", c0, TOTAL, r"{\fad(150,0)}" + esc(cta["sub"]), 3)
+    add("CTA", CTA_T0 + 0.3, TOTAL, r"{\fscx60\fscy60\t(0,200,\fscx110\fscy110)\t(200,300,\fscx100\fscy100)\t(800,1100,\fscx106\fscy106)\t(1100,1400,\fscx100\fscy100)\t(1900,2200,\fscx106\fscy106)\t(2200,2500,\fscx100\fscy100)}" + esc(cta["text"]), 3)
+    if cta.get("sub"): add("Sub", CTA_T0, TOTAL, r"{\fad(150,0)}" + esc(cta["sub"]), 3)
 ass = "[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\nWrapStyle: 2\nScaledBorderAndShadow: yes\n\n[V4+ Styles]\n" \
       "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n" \
       + "\n".join(styles) + "\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n" + "\n".join(ev) + "\n"
 open(f"{P}/captions.ass", "w").write(ass)
-# SRT for CapCut / platform upload
-with open(f"{P}/captions.srt", "w") as fsrt:
+with open(f"{P}/captions.srt", "w") as fsrt:  # SRT for CapCut / platform upload
     for i, ch in enumerate(chunks, 1):
         a, b = ch[0]["os"], ch[-1]["oe"] + 0.3
         f_ = lambda x: f"{int(x//3600):02d}:{int(x%3600//60):02d}:{int(x%60):02d},{int((x%1)*1000):03d}"
         fsrt.write(f"{i}\n{f_(a)} --> {f_(b)}\n{sep.join(w['w'] for w in ch)}\n\n")
 
 plan = {"preset": S["name"], "total": TOTAL, "keeps": keeps, "cuts": merged, "segments": plan_segments,
-        "cards": CARDS, "broll": BROLL, "chunks": len(chunks), "hook_end": hook_end}
+        "cards": M["cards"], "broll": M["broll"], "chunks": len(chunks), "hook_end": hook_end}
 json.dump(plan, open(f"{P}/plan.json", "w"), ensure_ascii=False, indent=1)
-report += ["", f"คำบรรยาย {len(chunks)} ชุด (สไตล์ {C['style']}) · การ์ด {len(CARDS)} · B-roll {len(BROLL)}"]
-if args.plan_only:
+pre_qa = layout.count_collisions(M)
+M["qa"] = {"collision_count": pre_qa["collision_count"], "face_card_overlaps": pre_qa["face_card_overlaps"],
+           "sub_card_overlaps": pre_qa["sub_card_overlaps"], "duration": TOTAL,
+           "asr_uncovered_s": round(sum(b - a for a, b in ASR.get("coverage", {}).get("uncovered_spans", [])), 2)}
+save_manifest()
+mode_n = {k: sum(1 for c in M["cards"] if c["mode"] == k) for k in ("card", "card_small", "broll_pip", "broll_full")}
+report += ["", f"คำบรรยาย {len(CAPS)} ชุด (สไตล์ {C['style']}) · การ์ด {len(CARDS)} · B-roll {len(BROLL)} · วางการ์ด {mode_n} · collision (แผน) {pre_qa['collision_count']}"]
+if args.plan_only or (LEVEL == 3 and not args.approved):
+    if LEVEL == 3 and not args.plan_only: report.append("⏸ automation_level 3: รอผู้ใช้อนุมัติแผน → รันซ้ำพร้อม --approved")
     open(f"{P}/report.md", "w").write("\n".join(report) + "\n"); print("\n".join(report)); sys.exit(0)
 
 # ------------------------------------------------------------- 5. motion graphics (cards) via PIL pipe
@@ -297,6 +399,7 @@ if gfx_needed:
         mk = Image.new("L", hdr.size, 0); ImageDraw.Draw(mk).rounded_rectangle((0, 0, hdr.width - 1, 120), 35, fill=255); hdr.putalpha(mk)
         im.alpha_composite(hdr, (pad + 6, pad + 6)); t = timg(title, 44, NAVY); im.alpha_composite(t, (pad + CW // 2 - t.width // 2, pad + 48 - t.height // 2))
         return im, pad
+    BACKDROP = Image.new("RGBA", (W, H), NAVY + (204,))  # #122A6B @ 80%
     def frame(t):
         fr = Image.new("RGBA", (W, H))
         for c in CARDS:
@@ -308,22 +411,26 @@ if gfx_needed:
                 paste(cv, emo(it[0], 112 if n <= 4 else 90), x, pad + 200 - 8 * math.sin(lt * 3 + i), ease_back(p), min(1, max(0, p * 3)))
                 if len(it) > 1: paste(cv, timg(it[1], 30 if n <= 4 else 26, NAVY), x, pad + 305, 1, min(1, max(0, (lt - .35 - i * .09) / .2)))
             if c.get("note"): paste(cv, timg(c["note"], 28, (190, 60, 130)), pad + CW / 2, pad + 362, 1, min(1, max(0, (lt - .7) / .3)))
-            pin = ease_back(lt / .35); pout = min(1, max(0, (t - (c["t1"] - .2)) / .2))
-            paste(fr, cv, 540 + 120 * (1 - min(1, lt / .35)), 1215 + 40 * pout, .9 * (.9 + .1 * pin), min(1, lt / .15) * (1 - pout))
+            pin = ease_back(lt / .35); pout = min(1, max(0, (t - (c["t1"] - .2)) / .2)); al = min(1, lt / .15) * (1 - pout)
+            if c["mode"] == "broll_full":  # cut-away: navy 80% backdrop + card x1.25 at y=960
+                paste(fr, BACKDROP, W / 2, H / 2, 1, al)
+                paste(fr, cv, 540, 960 + 40 * pout, 1.25 * (.9 + .1 * pin), al)
+            else:
+                bx, by, bw, bh = c["bbox"]
+                paste(fr, cv, bx + bw / 2 + 120 * (1 - min(1, lt / .35)), by + bh / 2 + 40 * pout, (bw / CW) * (.9 + .1 * pin), al)
         return fr
 
 # ------------------------------------------------------------- 6. render video
 grade, gvals = L.grade_filter(src_col, REF.get("colour") if REF else None, S["grade"])
 fc = []; inputs = ["-i", SRC]
 for i, s in enumerate(plan_segments):
-    a, b = s["a"], s["b"]; fr = max(1, round((b - a) * FPS))
-    pre = f"[0:v]trim={a:.3f}:{b:.3f},setpts=PTS-STARTPTS,fps={FPS}" + (f",crop={crop[0]}:{crop[1]}:{crop[2]}:0" if crop else "") + f",scale={SW}:{SH}:flags=lanczos"
-    if s["face"]:
-        FX, FY, _ = s["face"]; T = S["zoom"]["face_y"]
-        xy = f"x='max(0,min(iw-iw/zoom,{FX}-iw/zoom/2))':y='max(0,min(ih-ih/zoom,{FY}-{T}*ih/zoom))'"
-    else:
-        xy = f"x='(iw-iw/zoom)/2':y='(ih-ih/zoom)*{S['zoom']['anchor']}'"
-    fc.append(pre + f",zoompan=z='{s['z0']}+({s['z1']-s['z0']:.4f})*on/{fr}':{xy}:d=1:s={W}x{H}:fps={FPS},setsar=1[v{i}]")
+    a, b = s["a"], s["b"]; fr = max(1, round((b - a) * FPS)); den = max(1, fr - 1)
+    sx, sy, sw, sh = s["strip"]; kx, ky = SW / sw, SH / sh
+    c0, c1 = s["crop0"], s["crop1"]
+    z0, z1 = sw / c0[2], sw / c1[2]  # exact windows at both ends: zoom = strip_w / window_w
+    xe = f"({(c0[0]-sx)*kx:.3f}+({(c1[0]-c0[0])*kx:.3f})*on/{den})"; ye = f"({(c0[1]-sy)*ky:.3f}+({(c1[1]-c0[1])*ky:.3f})*on/{den})"
+    pre = f"[0:v]trim={a:.3f}:{b:.3f},setpts=PTS-STARTPTS,fps={FPS},crop={sw}:{sh}:{sx}:{sy},scale={SW}:{SH}:flags=lanczos"
+    fc.append(pre + f",zoompan=z='{z0:.5f}+({z1-z0:.5f})*on/{den}':x='{xe}':y='{ye}':d=1:s={W}x{H}:fps={FPS},setsar=1[v{i}]")
     fc.append(f"[0:a]atrim={a:.3f}:{b:.3f},asetpts=PTS-STARTPTS,afade=t=in:d=0.012,afade=t=out:st={max(0,b-a-0.015):.3f}:d=0.015[a{i}]")
 n = len(plan_segments)
 fc.append("".join(f"[v{i}][a{i}]" for i in range(n)) + f"concat=n={n}:v=1:a=1[cv][ca]")
@@ -331,17 +438,18 @@ fc.append(f"[cv]{grade},format=rgba[g0]"); last = "g0"; k = 1
 for j, b_ in enumerate(BROLL):  # user-supplied b-roll
     is_img = b_["file"].lower().endswith((".jpg", ".jpeg", ".png", ".webp"))
     inputs += (["-loop", "1", "-t", f"{TOTAL:.2f}"] if is_img else ["-stream_loop", "-1", "-t", f"{TOTAL:.2f}"]) + ["-i", b_["file"]]
-    if b_.get("mode") == "full":
+    if b_["mode"] == "broll_full":
         fc.append(f"[{k}:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},setpts=PTS-STARTPTS+{b_['t0']:.3f}/TB,format=rgba[b{j}]")
         fc.append(f"[{last}][b{j}]overlay=0:0:enable='between(t,{b_['t0']:.3f},{b_['t1']:.3f})':eof_action=pass[o{j}]")
     else:
-        mask = f"{P}/_mask.png"
+        bx, by, bw, bh = b_["bbox"]; iw, ih = bw - 16, bh - 16
+        mask = f"{P}/_mask_{iw}x{ih}.png"
         if not os.path.exists(mask):
             from PIL import Image, ImageDraw
-            mk = Image.new("L", (720, 420), 0); ImageDraw.Draw(mk).rounded_rectangle((0, 0, 719, 419), 36, fill=255); mk.save(mask)
+            mk = Image.new("L", (iw, ih), 0); ImageDraw.Draw(mk).rounded_rectangle((0, 0, iw - 1, ih - 1), 36, fill=255); mk.save(mask)
         inputs += ["-loop", "1", "-i", mask]
-        fc.append(f"[{k}:v]scale=720:420:force_original_aspect_ratio=increase,crop=720:420,format=rgba[bb{j}];[{k+1}:v]format=gray,scale=720:420[mk{j}];[bb{j}][mk{j}]alphamerge,pad=736:436:8:8:color=white@0,setpts=PTS-STARTPTS+{b_['t0']:.3f}/TB[b{j}]")
-        fc.append(f"[{last}][b{j}]overlay=172:1000:enable='between(t,{b_['t0']:.3f},{b_['t1']:.3f})':eof_action=pass:shortest=0[o{j}]"); k += 1
+        fc.append(f"[{k}:v]scale={iw}:{ih}:force_original_aspect_ratio=increase,crop={iw}:{ih},format=rgba[bb{j}];[{k+1}:v]format=gray,scale={iw}:{ih}[mk{j}];[bb{j}][mk{j}]alphamerge,pad={bw}:{bh}:8:8:color=white@0,setpts=PTS-STARTPTS+{b_['t0']:.3f}/TB[b{j}]")
+        fc.append(f"[{last}][b{j}]overlay={bx}:{by}:enable='between(t,{b_['t0']:.3f},{b_['t1']:.3f})':eof_action=pass:shortest=0[o{j}]"); k += 1
     last = f"o{j}"; k += 1
 if gfx_needed:
     inputs += ["-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{W}x{H}", "-framerate", str(FPS), "-i", "pipe:0"]
@@ -352,16 +460,22 @@ fc.append(f"[ca]{VC}[ao]")
 cmd = ["ffmpeg", "-v", "error", "-y", *inputs, "-filter_complex", ";".join(fc), "-map", "[vo]", "-map", "[ao]", "-t", f"{TOTAL:.3f}",
        "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-r", str(FPS), "-c:a", "pcm_s16le", f"{P}/_video_voice.mov"]
 print(f"rendering {TOTAL:.1f}s · {n} segments · cards {len(CARDS)} · broll {len(BROLL)}", flush=True)
+T_RENDER = time.time()
 if gfx_needed:
     pr = subprocess.Popen(cmd, stdin=subprocess.PIPE)
-    for i in range(int(TOTAL * FPS) + 3): pr.stdin.write(frame(i / FPS).tobytes())
-    pr.stdin.close(); assert pr.wait() == 0, "ffmpeg failed"
+    try:
+        for i in range(int(TOTAL * FPS) + 3): pr.stdin.write(frame(i / FPS).tobytes())
+    except BrokenPipeError: pass
+    try: pr.stdin.close()
+    except BrokenPipeError: pass
+    assert pr.wait() == 0, "ffmpeg failed"
 else: L.run(cmd)
+render_s = time.time() - T_RENDER
 
 # ------------------------------------------------------------- 7. SFX + music + master
 N = int((TOTAL + .3) * L.SR); SFX = np.zeros((N, 2)); cues = []
 def put(rel, t, g, why):
-    if not rel or g <= 0: return
+    if not SFX_ON or not rel or g <= 0: return
     x = load(rel); i = int(round(max(0, t) * L.SR)); j = min(N, i + len(x)); SFX[i:j] += x[:j - i] * g; cues.append((t, rel, why))
 load = functools.lru_cache(None)(L.load_sfx); X = S["sfx"]
 if hook_lines: put("synth/whoosh", 0.0, .22, "เปิดคลิป"); put(X["hook"], .3, X["hook_level"], "Hook ขึ้น")
@@ -373,12 +487,13 @@ for t in emph_times:
     if is_kept(t): put(X.get("emphasis"), m(t), X.get("emphasis_level", .3), "คำเน้น")
 for c in CARDS: put("synth/whoosh", c["t0"] - .1, .12, "การ์ดเข้า"); put(X.get("card"), c["t0"] + .2, .3, "ไอเท็มบนการ์ด")
 for b_ in BROLL: put("synth/whoosh", b_["t0"] - .12, .14, "B-roll เข้า")
-if cta: put(X.get("cta"), max(hook_end, TOTAL - 3.6) + .3, .42, "ปุ่ม CTA")
-L.write_wav(f"{P}/sfx_track.wav", SFX)
+if cta: put(X.get("cta"), CTA_T0 + .3, .42, "ปุ่ม CTA")
+sfx_wav = None
+if SFX_ON: L.write_wav(f"{P}/sfx_track.wav", SFX); sfx_wav = f"{P}/sfx_track.wav"
 mus = None
 if S["music"]["enabled"]:
     mus = f"{P}/music.wav"; L.write_wav(mus, L.make_music(TOTAL, S["music"]["bpm"], S["music"]["mood"], drop=hook_end or 0.0))
-L.mix_master(f"{P}/_video_voice.mov", mus, f"{P}/sfx_track.wav", f"{P}/FINAL.mp4", music_vol=S["music"]["level"])
+L.mix_master(f"{P}/_video_voice.mov", mus, sfx_wav, f"{P}/FINAL.mp4", music_vol=S["music"]["level"], sfx_vol=SFX_VOL)
 os.remove(f"{P}/_video_voice.mov")
 with open(f"{P}/cue_sheet.tsv", "w") as f: f.write("time\tsound\tpurpose\n" + "".join(f"{t:.2f}\t{r}\t{w}\n" for t, r, w in sorted(cues)))
 
@@ -389,8 +504,25 @@ qts = sorted(set(round(min(max(q, 0.1), TOTAL - .1), 2) for q in qts))[:8]
 for i, q in enumerate(qts): L.run(["ffmpeg", "-v", "error", "-y", "-ss", str(q), "-i", f"{P}/FINAL.mp4", "-frames:v", "1", "-vf", "scale=270:-1", f"{P}/_q{i}.png"])
 L.run(["ffmpeg", "-v", "error", "-y", *sum([["-i", f"{P}/_q{i}.png"] for i in range(len(qts))], []), "-filter_complex", f"hstack={len(qts)}", f"{P}/qa.jpg"])
 for i in range(len(qts)): os.remove(f"{P}/_q{i}.png")
+col_ = layout.count_collisions(M)
+M["qa"].update({"collision_count": col_["collision_count"], "face_card_overlaps": col_["face_card_overlaps"], "sub_card_overlaps": col_["sub_card_overlaps"],
+                "collision_details": col_["details"], "lufs": ld["lufs"], "peak": ld["peak"], "duration": pr_["duration"], "render_s": round(render_s, 1)})
+M["outputs"] = {"final": f"{P}/FINAL.mp4", "captions_ass": f"{P}/captions.ass", "captions_srt": f"{P}/captions.srt", "cue_sheet": f"{P}/cue_sheet.tsv", "qa_strip": f"{P}/qa.jpg"}
+save_manifest()
+qdir = f"{P}/artifacts/qa"; os.makedirs(qdir, exist_ok=True)
+qa_visual.audio_diagnostics(P, f"{qdir}/audio_diagnostics.png")
+cs = qa_visual.contact_sheet(P, f"{qdir}/contact_sheet.png")
+M = json.load(open(f"{P}/pipeline_manifest.json"))  # qa_visual wrote images + its own collision_count
+vis_n = cs["collision_count"]; qa_ = M["qa"]
+qa_["collision_count_layout"] = col_["collision_count"]; qa_["collision_count_visual"] = vis_n
+qa_["collision_count"] = max(col_["collision_count"], vis_n)
+M["outputs"]["qa_images"] = [f"{qdir}/audio_diagnostics.png", f"{qdir}/contact_sheet.png"]
+save_manifest()
 report += ["", "## ผลลัพธ์", f"- FINAL.mp4 · {pr_['w']}x{pr_['h']} · {pr_['duration']:.1f} วิ · {ld['lufs']} LUFS · peak {ld['peak']} dBFS",
            f"- เกรดสี: contrast {gvals['contrast']:.2f}, saturation {gvals['saturation']:.2f}, brightness {gvals['brightness']:+.3f}, warmth {gvals['warmth']:+.3f}",
            f"- เพลง: {'mood '+S['music']['mood']+' '+str(S['music']['bpm'])+' BPM' if mus else 'ไม่มี'} · SFX {len(cues)} จุด (cue_sheet.tsv)",
-           f"- QA frames: qa.jpg (เวลา {', '.join(map(str, qts))})"]
+           f"- QA frames: qa.jpg (เวลา {', '.join(map(str, qts))}) · artifacts/qa/contact_sheet.png · artifacts/qa/audio_diagnostics.png",
+           f"- collision_count {qa_['collision_count']} (layout {col_['collision_count']} / visual {vis_n}) · ASR ไม่ครอบคลุม {qa_.get('asr_uncovered_s', 0)} วิ · render {render_s:.0f} วิ"]
 open(f"{P}/report.md", "w").write("\n".join(report) + "\n"); print("\n".join(report))
+print(f"QA: duration {pr_['duration']:.1f}s LUFS {ld['lufs']} peak {ld['peak']} collisions {qa_['collision_count']} "
+      f"(layout {col_['collision_count']}/visual {vis_n}) uncovered {qa_.get('asr_uncovered_s', 0)}s retakes {n_retake} total {time.time()-T_START:.0f}s")
