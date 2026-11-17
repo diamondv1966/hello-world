@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "metric": "cost_per_acceptable_task = sum(est_cost_usd) / count(accepted == true)",
+  "tasks": []
+}
