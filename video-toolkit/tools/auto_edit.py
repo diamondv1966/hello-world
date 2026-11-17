@@ -99,19 +99,23 @@ words, segments = ASR["words"], ASR["segments"]
 OVR = CFG.get("transcript_overrides") or []
 if OVR:  # corrected Thai text replaces mis-heard Whisper words (times spread by character length)
     import re
-    from pythainlp.tokenize import word_tokenize
-    def toks_of(text):
+    from vt.captions import tokenize as vcap_tok
+    def toks_of(text):  # [(token, brk_after)] -- spaces typed by the editor mark phrase boundaries
         out = []
-        for t in word_tokenize(text, engine="newmm", keep_whitespace=False):
-            if not t.strip(): continue
-            out += [x for x in re.findall(r"\d+(?:[./]\d+)?|\D+", t) if x.strip()] if re.search(r"\d", t) and not t.isdigit() else [t]
-        return [t for t in out if t.strip()]
+        for part in text.split():
+            pt = []
+            for t in vcap_tok(part):
+                if not t.strip(): continue
+                pt += [x for x in re.findall(r"\d+(?:[./]\d+)?|\D+", t) if x.strip()] if re.search(r"\d", t) and not t.isdigit() else [t]
+            pt = [t for t in pt if t.strip()]
+            out += [(t, k == len(pt) - 1) for k, t in enumerate(pt)]
+        return out
     words = [dict(w) for w in words]; bounds = []
     for o_ in sorted(OVR, key=lambda o: o["s"]):
         inside = [w for w in words if o_["s"] <= (w["s"] + w["e"]) / 2 <= o_["e"]]
         a_, b_ = (inside[0]["s"], inside[-1]["e"]) if inside else (o_["s"], o_["e"])
         words = [w for w in words if not any(w is x for x in inside)]
-        tk = toks_of(o_["text"]); tot = sum(len(t) for t in tk) or 1; cum = 0; new_w = []
+        tk = toks_of(o_["text"]); tot = sum(len(t) for t, _ in tk) or 1; cum = 0; new_w = []
         voiced, t_ = [], a_  # spread characters over voiced time only (silences inside the span are skipped)
         for sa, sb in sorted(sil):
             if sb <= a_ or sa >= b_: continue
@@ -126,8 +130,8 @@ if OVR:  # corrected Thai text replaces mis-heard Whisper words (times spread by
                 if r <= y - x + 1e-9: return x + r
                 r -= y - x
             return voiced[-1][1]
-        for t in tk:
-            new_w.append({"w": t, "s": round(at_v(cum / tot), 3), "e": round(at_v((cum + len(t)) / tot), 3)}); cum += len(t)
+        for t, bf in tk:
+            new_w.append({"w": t, "s": round(at_v(cum / tot), 3), "e": round(at_v((cum + len(t)) / tot), 3), "brk_after": bf}); cum += len(t)
         words += new_w; bounds.append(b_)
     words.sort(key=lambda w: w["s"])
     THAI_FINAL = ("นะคะ", "นะครับ", "ค่ะ", "คะ", "ครับ"); segments, i0 = [], 0
@@ -252,35 +256,11 @@ if LANG == "th":  # numbers need a space after them in Thai captions ("4 ผม�
         if _re.fullmatch(r"\d+(?:[./]\d+)?", w["w"]): w["w"] += " "
 PART = {"ค่ะ", "คะ", "ครับ", "นะ", "จ้ะ", "จ้า"}
 if C.get("drop_particles"): ow = [w for w in ow if w["w"] not in PART]
-chunks, cur = [], []
-def flush():
-    if cur: chunks.append(list(cur)); cur.clear()
-for w in ow:
-    clen = sum(len(x["w"]) for x in cur)
-    if cur and (len(cur) >= C["max_words"] or clen + len(w["w"]) > C["max_chars"] or w["os"] - cur[-1]["oe"] > 0.6): flush()
-    cur.append(w)
-    if (w["w"].rstrip()[-1:] in ".!?" and not w["w"].rstrip()[:-1].isdigit()) or w["w"] in ("ค่ะ", "คะ", "ครับ", "นะคะ", "นะครับ"): flush()
-flush()
+from vt import captions as vcap
 sep = "" if LANG == "th" else " "
-START_BAD = ("ค่ะ", "คะ", "ครับ", "นะคะ", "นะครับ")
-_c2 = []
-for ch in chunks:  # never start a chunk with a sentence particle
-    if _c2 and ch[0]["w"].strip() in START_BAD:
-        k_ = 0
-        while k_ < len(ch) and ch[k_]["w"].strip() in START_BAD: k_ += 1
-        _c2[-1] += ch[:k_]; ch = ch[k_:]
-        if not ch: continue
-    _c2.append(ch)
-chunks = _c2
+chunks = vcap.chunk_words(ow, C["max_words"], C["max_chars"], LANG)
 def cdur(ch): return ch[-1]["oe"] - ch[0]["os"]
 def ctext(ch): return sep.join(w["w"] for w in ch)
-i_ = 0
-while i_ < len(chunks):  # merge tiny single-word chunks (<0.6 s)
-    ch = chunks[i_]
-    if len(ch) == 1 and cdur(ch) < 0.6:
-        if i_ > 0 and len(ctext(chunks[i_ - 1]) + ctext(ch)) <= C["max_chars"] + 6: chunks[i_ - 1] += ch; del chunks[i_]; continue
-        if i_ + 1 < len(chunks) and len(ctext(ch) + ctext(chunks[i_ + 1])) <= C["max_chars"] + 6: chunks[i_ + 1] = ch + chunks[i_ + 1]; del chunks[i_]; continue
-    i_ += 1
 if LANG == "th":  # space after repetition mark ๆ when more Thai follows
     for ch in chunks:
         for w, nx in zip(ch, ch[1:]):
@@ -440,13 +420,9 @@ if gfx_needed:
     @functools.lru_cache(None)
     def fnt(sz): return ImageFont.truetype(f"{L.A}/fonts/KanitXB.ttf", sz, layout_engine=ImageFont.Layout.RAQM)
     @functools.lru_cache(None)
-    def timg(s, sz, col):
-        f = fnt(sz); bb = f.getbbox(s); im = Image.new("RGBA", (bb[2] - bb[0] + 4, bb[3] - bb[1] + 4))
-        ImageDraw.Draw(im).text((2 - bb[0], 2 - bb[1]), s, font=f, fill=col); return im
+    def timg(s, sz, col): return vcap.label_line(fnt(sz), s, col)[0]  # fixed-height line box, common baseline
     @functools.lru_cache(None)
-    def emo(e, sz):
-        g = Image.new("RGBA", (160, 140)); ImageDraw.Draw(g).text((0, 0), e, font=EMO, embedded_color=True)
-        g = g.crop(g.getbbox()); s = sz / max(g.size); return g.resize((max(1, int(g.width * s)), max(1, int(g.height * s))), Image.LANCZOS)
+    def emo(e, sz): return vcap.emoji_box(EMO, e, sz)  # fixed sz x sz box
     def ease_back(p): p = min(1, max(0, p)); c1 = 1.70158; return 1 + (c1 + 1) * (p - 1) ** 3 + c1 * (p - 1) ** 2
     def paste(dst, im, cx, cy, sc=1.0, al=1.0):
         if sc <= .01 or al <= .01: return
