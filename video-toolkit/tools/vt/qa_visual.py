@@ -262,6 +262,7 @@ def contact_sheet(project_dir, out_png, n=8):
     sd = ImageDraw.Draw(sheet)
     f_h, f_l = _font(28), _font(22)
     tiles, total = [], 0
+    seen = set()
     with tempfile.TemporaryDirectory() as tmp:
         for i, t in enumerate(times):
             fr = _grab(final, t, tmp)
@@ -271,20 +272,25 @@ def contact_sheet(project_dir, out_png, n=8):
             face = _face_at(segs, t)
             ac, ap = _active(cards, t), _active(caps, t)
             if face:
-                dr.rectangle([face[0], face[1], face[0] + face[2], face[1] + face[3]], outline=RED, width=8)
+                dr.rectangle([face[0], face[1], face[0] + face[2], face[1] + face[3]], outline=RED, width=12)
             for c in ac:
                 b = c["bbox"]
-                dr.rectangle([b[0], b[1], b[0] + b[2], b[1] + b[3]], outline=BLUE, width=8)
+                dr.rectangle([b[0], b[1], b[0] + b[2], b[1] + b[3]], outline=BLUE, width=12)
             for c in ap:
                 b = c["bbox"]
-                dr.rectangle([b[0], b[1], b[0] + b[2], b[1] + b[3]], outline=GREEN, width=8)
+                dr.rectangle([b[0], b[1], b[0] + b[2], b[1] + b[3]], outline=GREEN, width=12)
             reasons = []
             for c in ac:
-                if face and _inter(face, c["bbox"]):
-                    reasons.append("face-card")
+                ci = cards.index(c)
+                cut = c.get("mode") in ("broll_full", "broll_pip") and c["bbox"][2] >= 1000 and c["bbox"][3] >= 1800  # full-frame cut-away
+                cut_away = c.get("mode") == "broll_full"
+                if face and not cut_away and _inter(face, c["bbox"]) and ("face", ci) not in seen:
+                    seen.add(("face", ci)); reasons.append("face-card")
+                if cut: continue
                 for p in ap:
-                    if _inter(p["bbox"], _inflate(c["bbox"], GAP)):
-                        reasons.append("sub-card")
+                    k_ = ("sub", ci, caps.index(p))
+                    if _inter(p["bbox"], _inflate(c["bbox"], GAP)) and k_ not in seen:
+                        seen.add(k_); reasons.append("sub-card")
             total += len(reasons)
             status = "COLLISION" if reasons else "OK"
             tile = fr.resize((TW, TH), Image.LANCZOS)

@@ -230,7 +230,7 @@ styles = [
  f"Style: HookA,KanitXB,{int(HK['size']*1.3)},{ass_col(HK['accent'])},{ass_col(HK['accent'])},{ass_col(HK['outline'])},{ass_col('#000000',0x80)},0,0,0,0,100,100,1,0,1,9,6,8,60,60,{HK['y']+int(HK['size']*1.25)},1",
  f"Style: CTA,KanitXB,78,{ass_col(S['cta']['color'])},{ass_col(S['cta']['color'])},{ass_col(S['cta']['box'])},{ass_col('#000000')},0,0,0,0,100,100,1,0,3,18,0,2,60,60,560,1",
  f"Style: Sub,KanitXB,60,{ass_col('#FFFFFF')},{ass_col('#FFFFFF')},{ass_col(HK['outline'])},{ass_col('#000000',0x80)},0,0,0,0,100,100,1,0,1,6,3,2,60,60,700,1",
- f"Style: Disc,KanitXB,34,{ass_col('#FFFFFF')},{ass_col('#FFFFFF')},{ass_col(HK['outline'])},{ass_col('#000000',0x80)},0,0,0,0,100,100,0,0,1,3,2,8,60,60,175,1",
+ f"Style: Disc,KanitXB,30,{ass_col('#FFFFFF')},{ass_col('#FFFFFF')},{ass_col(HK['outline'])},{ass_col('#000000',0x80)},0,0,0,0,100,100,0,0,1,3,2,8,60,60,175,1",
 ]
 ev = []
 def add(st, a, b, txt, layer=0): ev.append(f"Dialogue: {layer},{ts(a)},{ts(b)},{st},,0,0,0,,{txt}")
@@ -273,12 +273,27 @@ for ci, ch in enumerate(chunks):
 
 cta = CFG.get("cta")
 CTA_T0 = max(hook_end, TOTAL - 3.6)
+# ONE stable caption bottom y for the whole clip: below the lowest padded face box, clamped to [preset y, 1385]
+if CAPS:
+    typ = max(CAPS, key=lambda c: len(c["text"]))["text"]
+    cap_h = layout.text_bbox(typ, FONT_PATH, C["size"], bottom_y=C["y"], outline=C["outline_w"])[3]
+    face_bot = max([s_["face_out"][1] + s_["face_out"][3] for s_ in plan_segments if s_["face_out"]] or [0])
+    CAP_Y = int(min(max(face_bot + 24 + cap_h, C["y"]), 1385))
+    for c in CAPS:
+        c["y"] = CAP_Y; c["bbox"] = layout.text_bbox(c["text"], FONT_PATH, C["size"], bottom_y=CAP_Y, outline=C["outline_w"])
+else: CAP_Y = C["y"]
+def place_cascade(t0, t1, sizes):
+    for wh in sizes:
+        pl = layout.place_card(t0, t1, wh, faces_out, CAPS, safe={"top": 140})
+        if pl["mode"] != "broll_full": return pl
+    return pl
 CARDS = []  # drawn cards: dict(c, t0, t1, bbox, mode, scale)
 for c in CFG.get("cards", []):
     s0 = find_at(c["at"])
     if s0 is None or not is_kept(s0): report.append(f"⚠️ ไม่พบคำ “{c['at']}” สำหรับการ์ด"); continue
     o = m(s0); t0, t1 = o, min(TOTAL, o + c.get("dur", 1.8))
-    pl = layout.place_card(t0, t1, (760, 400), faces_out, CAPS, safe={"top": 250})
+    pl = place_cascade(t0, t1, [(760, 400), (684, 360), (570, 300)])
+    if pl["mode"] == "broll_full": pl = {"bbox": [122, 540, 836, 440], "mode": "broll_full", "scale": 1.1}  # actual card rect (x1.1 at y=760)
     CARDS.append(dict(c, t0=t0, t1=t1, bbox=pl["bbox"], mode=pl["mode"], scale=pl["scale"]))
 BROLL = []
 for b_ in CFG.get("broll", []):
@@ -287,12 +302,15 @@ for b_ in CFG.get("broll", []):
     o = m(s0); t0, t1 = o, min(TOTAL, o + b_.get("dur", 1.5))
     if b_.get("mode", "pip") == "full": bbox, mode = [0, 0, W, H], "broll_full"
     else:
-        pl = layout.place_card(t0, t1, (736, 436), faces_out, CAPS, safe={"top": 250})
+        pl = place_cascade(t0, t1, [(736, 436), (552, 327), (442, 262)])
         bbox, mode = pl["bbox"], ("broll_full" if pl["mode"] == "broll_full" else "broll_pip")
     BROLL.append(dict(b_, t0=t0, t1=t1, bbox=bbox, mode=mode))
-obstacles = [c for c in CARDS if c["mode"] != "broll_full"] + [b_ for b_ in BROLL if b_["mode"] == "broll_pip"]
+obstacles = [dict(c, mode="card") for c in CARDS] + [b_ for b_ in BROLL if b_["mode"] == "broll_pip"]  # cut-away card rects count too
 if cta: obstacles.append({"t0": CTA_T0, "t1": TOTAL, "bbox": [60, 1120, 960, 250], "mode": "cta"})
 CAPS = layout.resolve_captions(CAPS, obstacles, faces_out)
+def _ov(a, b): return a[0] < b[0] + b[2] and b[0] < a[0] + a[2] and a[1] < b[1] + b[3] and b[1] < a[1] + a[3]
+soft = sum(1 for c in CAPS for f in faces_out if f["t0"] < c["t1"] and c["t0"] < f["t1"] and _ov(c["bbox"], f["bbox"]))
+cut_hits = sum(1 for c in CAPS for k_ in CARDS if k_["mode"] == "broll_full" and k_["t0"] < c["t1"] and c["t0"] < k_["t1"] and _ov(layout._grow(c["bbox"], 24), k_["bbox"]))
 M["captions"] = [{k: v for k, v in c.items() if k != "ci"} for c in CAPS]
 M["cards"] = [{"t0": round(c["t0"], 3), "t1": round(c["t1"], 3), "bbox": c["bbox"], "mode": c["mode"], "scale": c["scale"], "title": c.get("title")} for c in CARDS] + \
              [{"t0": round(b_["t0"], 3), "t1": round(b_["t1"], 3), "bbox": b_["bbox"], "mode": b_["mode"], "file": b_["file"]} for b_ in BROLL]
@@ -334,7 +352,7 @@ for ci, ch in enumerate(chunks):
         add("Cap", a, b, "{" + pos + r"\fscx55\fscy55\t(0,90,\fscx112\fscy112)\t(90,160,\fscx100\fscy100)}" + line(len(ch) - 1 if any(mask) else None), 1)
     elif style == "phrase":
         add("Cap", a, b, "{" + pos + r"\fad(110,60)\move(540," + str(ypos + 18) + ",540," + str(ypos) + ",0,160)}" + line(None), 1)
-if CFG.get("disclaimer"): add("Disc", hook_end, TOTAL, r"{\fad(300,0)\1a&H30&}" + esc(CFG["disclaimer"]), 0)
+if CFG.get("disclaimer"): add("Disc", hook_end, TOTAL, r"{\an2\pos(540,1432)\fad(300,0)\1a&H30&}" + esc(CFG["disclaimer"]), 0)
 if cta:
     add("CTA", CTA_T0 + 0.3, TOTAL, r"{\fscx60\fscy60\t(0,200,\fscx110\fscy110)\t(200,300,\fscx100\fscy100)\t(800,1100,\fscx106\fscy106)\t(1100,1400,\fscx100\fscy100)\t(1900,2200,\fscx106\fscy106)\t(2200,2500,\fscx100\fscy100)}" + esc(cta["text"]), 3)
     if cta.get("sub"): add("Sub", CTA_T0, TOTAL, r"{\fad(150,0)}" + esc(cta["sub"]), 3)
@@ -354,9 +372,11 @@ json.dump(plan, open(f"{P}/plan.json", "w"), ensure_ascii=False, indent=1)
 pre_qa = layout.count_collisions(M)
 M["qa"] = {"collision_count": pre_qa["collision_count"], "face_card_overlaps": pre_qa["face_card_overlaps"],
            "sub_card_overlaps": pre_qa["sub_card_overlaps"], "duration": TOTAL,
+           "caption_face_soft_overlaps": soft, "caption_cutaway_overlaps": cut_hits, "caption_y": CAP_Y,
            "asr_uncovered_s": round(sum(b - a for a, b in ASR.get("coverage", {}).get("uncovered_spans", [])), 2)}
 save_manifest()
 mode_n = {k: sum(1 for c in M["cards"] if c["mode"] == k) for k in ("card", "card_small", "broll_pip", "broll_full")}
+report += [f"คำเน้นที่พบ {len(emph_times)} จุด: " + ", ".join(f"{e}×{jtext().count(e)}" for e in emph)]
 report += ["", f"คำบรรยาย {len(CAPS)} ชุด (สไตล์ {C['style']}) · การ์ด {len(CARDS)} · B-roll {len(BROLL)} · วางการ์ด {mode_n} · collision (แผน) {pre_qa['collision_count']}"]
 if args.plan_only or (LEVEL == 3 and not args.approved):
     if LEVEL == 3 and not args.plan_only: report.append("⏸ automation_level 3: รอผู้ใช้อนุมัติแผน → รันซ้ำพร้อม --approved")
@@ -412,9 +432,9 @@ if gfx_needed:
                 if len(it) > 1: paste(cv, timg(it[1], 30 if n <= 4 else 26, NAVY), x, pad + 305, 1, min(1, max(0, (lt - .35 - i * .09) / .2)))
             if c.get("note"): paste(cv, timg(c["note"], 28, (190, 60, 130)), pad + CW / 2, pad + 362, 1, min(1, max(0, (lt - .7) / .3)))
             pin = ease_back(lt / .35); pout = min(1, max(0, (t - (c["t1"] - .2)) / .2)); al = min(1, lt / .15) * (1 - pout)
-            if c["mode"] == "broll_full":  # cut-away: navy 80% backdrop + card x1.25 at y=960
+            if c["mode"] == "broll_full":  # cut-away: navy 80% backdrop + card x1.1 at y=760
                 paste(fr, BACKDROP, W / 2, H / 2, 1, al)
-                paste(fr, cv, 540, 960 + 40 * pout, 1.25 * (.9 + .1 * pin), al)
+                paste(fr, cv, 540, 760 + 40 * pout, 1.1 * (.9 + .1 * pin), al)
             else:
                 bx, by, bw, bh = c["bbox"]
                 paste(fr, cv, bx + bw / 2 + 120 * (1 - min(1, lt / .35)), by + bh / 2 + 40 * pout, (bw / CW) * (.9 + .1 * pin), al)
