@@ -13,7 +13,7 @@ QA_COPY_DIR = os.path.join(_TOOLKIT, "artifacts", "qa")
 SR = 16000
 GAP = 24
 
-RED, BLUE, GREEN = (230, 30, 40), (30, 90, 230), (30, 170, 70)
+RED, BLUE, GREEN, YELLOW = (230, 30, 40), (30, 90, 230), (30, 170, 70), (235, 200, 20)
 CUT_COL = {"silence": (170, 170, 170), "head": (90, 90, 90), "tail": (90, 90, 90),
            "retake": (240, 140, 30), "skip": (140, 70, 190)}
 
@@ -215,6 +215,24 @@ def _face_at(segs, t):
     return None
 
 
+def overlay_collisions(m):
+    """overlay (hook/cta/cta_sub/disclaimer) vs caption (gap<24, disclaimer gap<12) and vs face (hook/cta)."""
+    out = []
+    caps, segs = m.get("captions") or [], m.get("segments") or []
+    for oi, o in enumerate(m.get("overlays") or []):
+        gap = 12 if o["kind"] == "disclaimer" else GAP
+        for ci, c in enumerate(caps):
+            if c.get("bbox") and c["t0"] < o["t1"] and o["t0"] < c["t1"] and _inter(_inflate(o["bbox"], gap), c["bbox"]):
+                out.append({"type": "overlay_caption", "overlay": oi, "kind": o["kind"], "caption": ci,
+                            "t0": max(o["t0"], c["t0"]), "t1": min(o["t1"], c["t1"])})
+        if o["kind"] in ("hook", "cta", "cta_sub"):
+            for si, s in enumerate(segs):
+                if s.get("face_out") and s["oa"] < o["t1"] and o["t0"] < s["ob"] and _inter(o["bbox"], s["face_out"]):
+                    out.append({"type": "overlay_face", "overlay": oi, "kind": o["kind"], "segment": si,
+                                "t0": max(o["t0"], s["oa"]), "t1": min(o["t1"], s["ob"])})
+    return out
+
+
 def _pick_times(m, n, out_dur):
     segs, cards, caps = m.get("segments") or [], m.get("cards") or [], m.get("captions") or []
     cand = []
@@ -222,6 +240,10 @@ def _pick_times(m, n, out_dur):
     if z:
         s = z[0]
         cand.append((s["oa"] + s["ob"]) / 2)
+    ovs = m.get("overlays") or []
+    for k in ("hook", "cta"):
+        o = next((o for o in ovs if o["kind"] == k), None)
+        if o: cand.append(min(1.0, (o["t0"] + o["t1"]) / 2) if k == "hook" else max(o["t0"] + 0.1, out_dur - 1.5))
     cand += [c["t0"] + 0.6 for c in cards]
     if caps:
         k = min(len(caps), max(2, n // 2))
@@ -247,7 +269,7 @@ def _grab(final, t, tmp):
     return Image.open(p).convert("RGB")
 
 
-def contact_sheet(project_dir, out_png, n=8):
+def contact_sheet(project_dir, out_png, n=10):
     m = _load(project_dir)
     final = os.path.join(project_dir, "FINAL.mp4")
     pr = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", final],
@@ -279,6 +301,10 @@ def contact_sheet(project_dir, out_png, n=8):
             for c in ap:
                 b = c["bbox"]
                 dr.rectangle([b[0], b[1], b[0] + b[2], b[1] + b[3]], outline=GREEN, width=12)
+            aov = _active(m.get("overlays"), t)
+            for o in aov:
+                b = o["bbox"]
+                dr.rectangle([b[0], b[1], b[0] + b[2], b[1] + b[3]], outline=YELLOW, width=6)
             reasons = []
             for c in ac:
                 ci = cards.index(c)
@@ -291,6 +317,14 @@ def contact_sheet(project_dir, out_png, n=8):
                     k_ = ("sub", ci, caps.index(p))
                     if _inter(p["bbox"], _inflate(c["bbox"], GAP)) and k_ not in seen:
                         seen.add(k_); reasons.append("sub-card")
+            for o in aov:
+                oi = m["overlays"].index(o); gap = 12 if o["kind"] == "disclaimer" else GAP
+                for p in ap:
+                    k_ = ("ovc", oi, caps.index(p))
+                    if _inter(_inflate(o["bbox"], gap), p["bbox"]) and k_ not in seen:
+                        seen.add(k_); reasons.append("overlay-caption")
+                if o["kind"] in ("hook", "cta", "cta_sub") and face and _inter(face, o["bbox"]) and ("ovf", oi) not in seen:
+                    seen.add(("ovf", oi)); reasons.append("overlay-face")
             total += len(reasons)
             status = "COLLISION" if reasons else "OK"
             tile = fr.resize((TW, TH), Image.LANCZOS)
@@ -300,7 +334,7 @@ def contact_sheet(project_dir, out_png, n=8):
             sd.text((x + 6, y + 3), f"t={t:.2f}s  {status}", fill=col, font=f_l)
             tiles.append({"t": round(t, 3), "status": status, "reasons": reasons,
                           "face": face, "cards": [c["bbox"] for c in ac], "captions": [c["bbox"] for c in ap]})
-    sd.text((8, 10), f"contact sheet  |  collisions: {total}  |  face=red card=blue caption=green  |  "
+    sd.text((8, 10), f"contact sheet  |  collisions: {total}  |  face=red card=blue caption=green overlay=yellow  |  "
                      f"{len(times)} frames", fill=(20, 20, 20), font=f_h)
     os.makedirs(os.path.dirname(os.path.abspath(out_png)), exist_ok=True)
     sheet.save(out_png)

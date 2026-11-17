@@ -1,0 +1,85 @@
+{
+ "cut": {
+  "max_gap": 0.26,
+  "pad": 0.04,
+  "end_pad": 0.4,
+  "remove_retakes": true,
+  "max_len": 55
+ },
+ "zoom": {
+  "mode": "alternate",
+  "levels": [
+   1.0,
+   1.21
+  ],
+  "drift": 0.02,
+  "emphasis_punch": 0.12,
+  "face_y": 0.5,
+  "anchor": 0.38
+ },
+ "captions": {
+  "style": "pop",
+  "font": "KanitXB",
+  "size": 76,
+  "y": 1373,
+  "alt_y": 380,
+  "max_words": 1,
+  "max_chars": 12,
+  "color": "#F0F0F0",
+  "highlight": "#70D0F0",
+  "past_color": null,
+  "outline": "#000000",
+  "outline_w": 10,
+  "shadow": 0,
+  "box": null,
+  "emphasis_color": "#3BFF6B",
+  "drop_particles": false
+ },
+ "hook": {
+  "size": 112,
+  "color": "#FFFFFF",
+  "accent": "#FFE600",
+  "outline": "#000000",
+  "y": 300,
+  "dur": 2.6
+ },
+ "cta": {
+  "color": "#000000",
+  "box": "#FFE600"
+ },
+ "grade": {
+  "contrast": 1.1,
+  "saturation": 1.05,
+  "brightness": 0.0,
+  "warmth": 0.0,
+  "vignette": true,
+  "sharpen": 0.5,
+  "desaturate": false,
+  "match_ref": true
+ },
+ "sfx": {
+  "cut_whoosh": null,
+  "cut_level": 0.1,
+  "cut_min_gap": 1.4,
+  "emphasis": "studio/press",
+  "emphasis_level": 0.25,
+  "hook": "cinematic/press",
+  "hook_level": 0.42,
+  "card": "studio/select",
+  "cta": "glass/success"
+ },
+ "music": {
+  "enabled": true,
+  "mood": "serious",
+  "bpm": 90,
+  "level": 0.06
+ },
+ "name": "user/selftest-thai",
+ "description": "preset ส่วนตัวจากเรฟ ref_selftest.mp4 (base bold-hormozi)",
+ "ref_colour": {
+  "brightness": 0.561,
+  "contrast": 0.251,
+  "saturation": 0.252,
+  "warmth": -0.007
+ }
+}

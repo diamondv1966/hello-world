@@ -1,0 +1,87 @@
+{
+ "file": "ref_selftest.mp4",
+ "duration": 53.0,
+ "size": [
+  1080,
+  1920
+ ],
+ "cuts": {
+  "count": 18,
+  "per_min": 20.4,
+  "avg_shot": 2.79,
+  "median_shot": 2.3
+ },
+ "speech": {
+  "words": 135,
+  "wpm": 153,
+  "median_pause": 0.22,
+  "p90_pause": 0.3,
+  "text": "9สัญญาณเตือนค่ะว่าร้างกายของเราบอกอะไรกับเรามันฟังทางนี้กันค่ะ1ค่ะปวดหัวขาดน้ำค่ะ2ค่ะเป็นตะคิวขาดแม็กนิเซียมค่ะ3ค่ะบวมเสียงในการเป็นหลบหัวใจค่ะ4ผมร่วงอย่างนักเลยขาดทัดเล็กค่ะ5ชาปรายนิวนะคะขาดวิทยมมีB12ค่ะ6ค่ะเวียนหัวแสดงว่าแล้วกายกำลังคาดน้ำตาลค่ะเสร็จค่ะลมหยายใจมีกริ้งแสดงว่าหลำใสเริ่มมีปัญหาค่ะ๓หาวปลวยห่วงนอนหรือเกินแสดงว่าแล้วกายของเราค่าด๊อาวสิเจนค่ะ�首ค่ะมีเสียงแดงในหูแสดงว่ามีความเสียมในการเป"
+ },
+ "loudness": {
+  "lufs": -14.0,
+  "lra": 1.7,
+  "peak": -1.9
+ },
+ "music": {
+  "bed_db_in_pauses": -19.1,
+  "silence_fraction": 0.0,
+  "likely_music": true
+ },
+ "colour": {
+  "brightness": 0.561,
+  "contrast": 0.251,
+  "saturation": 0.252,
+  "warmth": -0.007
+ },
+ "framing": {
+  "face_found": 0.88,
+  "face_height_frac": 0.198,
+  "face_size_range": [
+   0.179,
+   0.216
+  ],
+  "zoom_punches_per_min": 9.1,
+  "face_y_frac": 0.504
+ },
+ "captions": {
+  "frames_with_text": 0.83,
+  "y_center": 1348,
+  "text_height_px": 43,
+  "words_on_screen": 1.0,
+  "changes_per_sec": 1.42,
+  "colours": [
+   "#F0F0F0",
+   "#D0D0D0",
+   "#F0B0D0",
+   "#70D0F0",
+   "#D0B0F0",
+   "#B0B0F0"
+  ]
+ },
+ "preset_overrides": {
+  "cut": {
+   "max_gap": 0.26
+  },
+  "zoom": {
+   "levels": [
+    1.0,
+    1.21
+   ],
+   "mode": "alternate",
+   "face_y": 0.5
+  },
+  "captions": {
+   "y": 1373,
+   "size": 76,
+   "max_words": 1,
+   "style": "pop",
+   "color": "#F0F0F0",
+   "highlight": "#70D0F0"
+  },
+  "music": {
+   "enabled": true
+  }
+ },
+ "suggested_base_preset": "bold-hormozi"
+}

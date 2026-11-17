@@ -225,12 +225,12 @@ C = S["captions"]; HK = S["hook"]
 font = C["font"]; fontsdir = f"{L.A}/fonts"; FONT_PATH = f"{fontsdir}/{font}.ttf"
 border = 3 if C.get("box") else 1
 styles = [
- f"Style: Cap,{font},{C['size']},{ass_col(C['color'])},{ass_col(C['color'])},{ass_col(C.get('box') or C['outline'])},{ass_col('#000000',0x80)},0,0,0,0,100,100,1,0,{border},{C['outline_w'] if not C.get('box') else 14},{C['shadow']},2,60,60,{H-C['y']},1",
- f"Style: Hook,KanitXB,{HK['size']},{ass_col(HK['color'])},{ass_col(HK['color'])},{ass_col(HK['outline'])},{ass_col('#000000',0x80)},0,0,0,0,100,100,1,0,1,8,5,8,60,60,{HK['y']},1",
- f"Style: HookA,KanitXB,{int(HK['size']*1.3)},{ass_col(HK['accent'])},{ass_col(HK['accent'])},{ass_col(HK['outline'])},{ass_col('#000000',0x80)},0,0,0,0,100,100,1,0,1,9,6,8,60,60,{HK['y']+int(HK['size']*1.25)},1",
- f"Style: CTA,KanitXB,78,{ass_col(S['cta']['color'])},{ass_col(S['cta']['color'])},{ass_col(S['cta']['box'])},{ass_col('#000000')},0,0,0,0,100,100,1,0,3,18,0,2,60,60,560,1",
- f"Style: Sub,KanitXB,60,{ass_col('#FFFFFF')},{ass_col('#FFFFFF')},{ass_col(HK['outline'])},{ass_col('#000000',0x80)},0,0,0,0,100,100,1,0,1,6,3,2,60,60,700,1",
- f"Style: Disc,KanitXB,30,{ass_col('#FFFFFF')},{ass_col('#FFFFFF')},{ass_col(HK['outline'])},{ass_col('#000000',0x80)},0,0,0,0,100,100,0,0,1,3,2,8,60,60,175,1",
+ f"Style: Cap,{font},{C['size']},{ass_col(C['color'])},{ass_col(C['color'])},{ass_col(C.get('box') or C['outline'])},{ass_col('#000000',0x80)},0,0,0,0,100,100,0,0,{border},{C['outline_w'] if not C.get('box') else 14},{C['shadow']},2,60,60,{H-C['y']},1",
+ f"Style: Hook,KanitXB,{HK['size']},{ass_col(HK['color'])},{ass_col(HK['color'])},{ass_col(HK['outline'])},{ass_col('#000000',0x80)},0,0,0,0,100,100,0,0,1,8,5,8,60,60,{HK['y']},1",
+ f"Style: HookA,KanitXB,{int(HK['size']*1.3)},{ass_col(HK['accent'])},{ass_col(HK['accent'])},{ass_col(HK['outline'])},{ass_col('#000000',0x80)},0,0,0,0,100,100,0,0,1,9,6,8,60,60,{HK['y']+int(HK['size']*1.25)},1",
+ f"Style: CTA,KanitXB,78,{ass_col(S['cta']['color'])},{ass_col(S['cta']['color'])},{ass_col(S['cta']['box'])},{ass_col('#000000')},0,0,0,0,100,100,0,0,3,18,0,2,60,60,560,1",
+ f"Style: Sub,KanitXB,60,{ass_col('#FFFFFF')},{ass_col('#FFFFFF')},{ass_col(HK['outline'])},{ass_col('#000000',0x80)},0,0,0,0,100,100,0,0,1,6,3,2,60,60,700,1",
+ f"Style: Disc,KanitXB,28,{ass_col('#FFFFFF')},{ass_col('#FFFFFF')},{ass_col(HK['outline'])},{ass_col('#000000',0x80)},0,0,0,0,100,100,0,0,1,3,2,8,60,60,175,1",
 ]
 ev = []
 def add(st, a, b, txt, layer=0): ev.append(f"Dialogue: {layer},{ts(a)},{ts(b)},{st},,0,0,0,,{txt}")
@@ -262,6 +262,29 @@ for w in ow:
     if (w["w"].rstrip()[-1:] in ".!?" and not w["w"].rstrip()[:-1].isdigit()) or w["w"] in ("ค่ะ", "คะ", "ครับ", "นะคะ", "นะครับ"): flush()
 flush()
 sep = "" if LANG == "th" else " "
+START_BAD = ("ค่ะ", "คะ", "ครับ", "นะคะ", "นะครับ")
+_c2 = []
+for ch in chunks:  # never start a chunk with a sentence particle
+    if _c2 and ch[0]["w"].strip() in START_BAD:
+        k_ = 0
+        while k_ < len(ch) and ch[k_]["w"].strip() in START_BAD: k_ += 1
+        _c2[-1] += ch[:k_]; ch = ch[k_:]
+        if not ch: continue
+    _c2.append(ch)
+chunks = _c2
+def cdur(ch): return ch[-1]["oe"] - ch[0]["os"]
+def ctext(ch): return sep.join(w["w"] for w in ch)
+i_ = 0
+while i_ < len(chunks):  # merge tiny single-word chunks (<0.6 s)
+    ch = chunks[i_]
+    if len(ch) == 1 and cdur(ch) < 0.6:
+        if i_ > 0 and len(ctext(chunks[i_ - 1]) + ctext(ch)) <= C["max_chars"] + 6: chunks[i_ - 1] += ch; del chunks[i_]; continue
+        if i_ + 1 < len(chunks) and len(ctext(ch) + ctext(chunks[i_ + 1])) <= C["max_chars"] + 6: chunks[i_ + 1] = ch + chunks[i_ + 1]; del chunks[i_]; continue
+    i_ += 1
+if LANG == "th":  # space after repetition mark ๆ when more Thai follows
+    for ch in chunks:
+        for w, nx in zip(ch, ch[1:]):
+            if w["w"].endswith("ๆ"): w["w"] = w["w"].rstrip() + " "
 CAPS = []  # manifest captions (output time), chunk index in "ci"
 for ci, ch in enumerate(chunks):
     a = max(ch[0]["os"], hook_end if ci == 0 and hook_lines else 0); nxt = chunks[ci + 1][0]["os"] if ci + 1 < len(chunks) else TOTAL
@@ -278,7 +301,7 @@ if CAPS:
     typ = max(CAPS, key=lambda c: len(c["text"]))["text"]
     cap_h = layout.text_bbox(typ, FONT_PATH, C["size"], bottom_y=C["y"], outline=C["outline_w"])[3]
     face_bot = max([s_["face_out"][1] + s_["face_out"][3] for s_ in plan_segments if s_["face_out"]] or [0])
-    CAP_Y = int(min(max(face_bot + 24 + cap_h, C["y"]), 1385))
+    CAP_Y = int(min(max(face_bot + 24 + cap_h, C["y"]), 1360))
     for c in CAPS:
         c["y"] = CAP_Y; c["bbox"] = layout.text_bbox(c["text"], FONT_PATH, C["size"], bottom_y=CAP_Y, outline=C["outline_w"])
 else: CAP_Y = C["y"]
@@ -306,7 +329,6 @@ for b_ in CFG.get("broll", []):
         bbox, mode = pl["bbox"], ("broll_full" if pl["mode"] == "broll_full" else "broll_pip")
     BROLL.append(dict(b_, t0=t0, t1=t1, bbox=bbox, mode=mode))
 obstacles = [dict(c, mode="card") for c in CARDS] + [b_ for b_ in BROLL if b_["mode"] == "broll_pip"]  # cut-away card rects count too
-if cta: obstacles.append({"t0": CTA_T0, "t1": TOTAL, "bbox": [60, 1120, 960, 250], "mode": "cta"})
 CAPS = layout.resolve_captions(CAPS, obstacles, faces_out)
 def _ov(a, b): return a[0] < b[0] + b[2] and b[0] < a[0] + a[2] and a[1] < b[1] + b[3] and b[1] < a[1] + a[3]
 soft = sum(1 for c in CAPS for f in faces_out if f["t0"] < c["t1"] and c["t0"] < f["t1"] and _ov(c["bbox"], f["bbox"]))
@@ -316,6 +338,29 @@ M["cards"] = [{"t0": round(c["t0"], 3), "t1": round(c["t1"], 3), "bbox": c["bbox
              [{"t0": round(b_["t0"], 3), "t1": round(b_["t1"], 3), "bbox": b_["bbox"], "mode": b_["mode"], "file": b_["file"]} for b_ in BROLL]
 M["broll"] = [{"t0": b_["t0"], "t1": b_["t1"], "file": b_["file"], "mode": b_["mode"], "bbox": b_["bbox"]} for b_ in BROLL]
 save_manifest()
+
+# ---- overlays (hook / CTA / disclaimer) with bboxes, for QA
+def top_bbox(text, size, top_y, outline=8, grow=0):
+    b = layout.text_bbox(text, f"{fontsdir}/KanitXB.ttf", size, bottom_y=0, outline=outline)
+    h = b[3] + int(0.25 * size)
+    return [b[0] - grow, int(top_y) - grow, b[2] + 2 * grow, h + 2 * grow]
+OVERLAYS = []
+for i, line in enumerate(hook_lines):
+    last_l = i == len(hook_lines) - 1 and len(hook_lines) > 1
+    OVERLAYS.append({"kind": "hook", "t0": 0.25 * i, "t1": hook_end, "text": line,
+                     "bbox": top_bbox(line, int(HK["size"] * 1.3) if last_l else HK["size"], HK["y"] + (int(HK["size"] * 1.25) if last_l else 0), 9 if last_l else 8)})
+CTA_SIZE, CTA_Y, SUB_Y = 78, 340, 250
+if cta:
+    cface = [f["bbox"] for f in faces_out if f["t1"] > CTA_T0 and f["t0"] < TOTAL]
+    mk = lambda sz: top_bbox(cta["text"], sz, CTA_Y, 18, grow=int(0.06 * sz))
+    if any(layout._inter(mk(CTA_SIZE), fb_) for fb_ in cface): CTA_SIZE = 64
+    OVERLAYS.append({"kind": "cta", "t0": CTA_T0 + 0.3, "t1": TOTAL, "text": cta["text"], "bbox": mk(CTA_SIZE)})
+    if cta.get("sub"): OVERLAYS.append({"kind": "cta_sub", "t0": CTA_T0, "t1": TOTAL, "text": cta["sub"], "bbox": top_bbox(cta["sub"], 60, SUB_Y, 6)})
+if CFG.get("disclaimer"):
+    OVERLAYS.append({"kind": "disclaimer", "t0": hook_end, "t1": TOTAL, "text": CFG["disclaimer"],
+                     "bbox": layout.text_bbox(CFG["disclaimer"], f"{fontsdir}/KanitXB.ttf", 28, bottom_y=1428, outline=3)})
+for o_ in OVERLAYS: o_["t0"] = round(o_["t0"], 3); o_["t1"] = round(o_["t1"], 3)
+M["overlays"] = OVERLAYS; save_manifest()
 
 cap_by_ci = {c["ci"]: c for c in CAPS}
 def emph_mask(ch):
@@ -352,10 +397,10 @@ for ci, ch in enumerate(chunks):
         add("Cap", a, b, "{" + pos + r"\fscx55\fscy55\t(0,90,\fscx112\fscy112)\t(90,160,\fscx100\fscy100)}" + line(len(ch) - 1 if any(mask) else None), 1)
     elif style == "phrase":
         add("Cap", a, b, "{" + pos + r"\fad(110,60)\move(540," + str(ypos + 18) + ",540," + str(ypos) + ",0,160)}" + line(None), 1)
-if CFG.get("disclaimer"): add("Disc", hook_end, TOTAL, r"{\an2\pos(540,1432)\fad(300,0)\1a&H30&}" + esc(CFG["disclaimer"]), 0)
+if CFG.get("disclaimer"): add("Disc", hook_end, TOTAL, r"{\an2\pos(540,1428)\fad(300,0)\1a&H30&}" + esc(CFG["disclaimer"]), 0)
 if cta:
-    add("CTA", CTA_T0 + 0.3, TOTAL, r"{\fscx60\fscy60\t(0,200,\fscx110\fscy110)\t(200,300,\fscx100\fscy100)\t(800,1100,\fscx106\fscy106)\t(1100,1400,\fscx100\fscy100)\t(1900,2200,\fscx106\fscy106)\t(2200,2500,\fscx100\fscy100)}" + esc(cta["text"]), 3)
-    if cta.get("sub"): add("Sub", CTA_T0, TOTAL, r"{\fad(150,0)}" + esc(cta["sub"]), 3)
+    add("CTA", CTA_T0 + 0.3, TOTAL, r"{\an8\pos(540," + str(CTA_Y) + r")\fs" + str(CTA_SIZE) + r"\fscx60\fscy60\t(0,200,\fscx110\fscy110)\t(200,300,\fscx100\fscy100)\t(800,1100,\fscx106\fscy106)\t(1100,1400,\fscx100\fscy100)\t(1900,2200,\fscx106\fscy106)\t(2200,2500,\fscx100\fscy100)}" + esc(cta["text"]), 3)
+    if cta.get("sub"): add("Sub", CTA_T0, TOTAL, r"{\an8\pos(540," + str(SUB_Y) + r")\fad(150,0)}" + esc(cta["sub"]), 3)
 ass = "[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\nWrapStyle: 2\nScaledBorderAndShadow: yes\n\n[V4+ Styles]\n" \
       "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n" \
       + "\n".join(styles) + "\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n" + "\n".join(ev) + "\n"
@@ -363,6 +408,8 @@ open(f"{P}/captions.ass", "w").write(ass)
 with open(f"{P}/captions.srt", "w") as fsrt:  # SRT for CapCut / platform upload
     for i, ch in enumerate(chunks, 1):
         a, b = ch[0]["os"], ch[-1]["oe"] + 0.3
+        if i < len(chunks): b = min(b, chunks[i][0]["os"] - 0.02)
+        b = max(b, a + 0.05)
         f_ = lambda x: f"{int(x//3600):02d}:{int(x%3600//60):02d}:{int(x%60):02d},{int((x%1)*1000):03d}"
         fsrt.write(f"{i}\n{f_(a)} --> {f_(b)}\n{sep.join(w['w'] for w in ch)}\n\n")
 
@@ -525,8 +572,10 @@ for i, q in enumerate(qts): L.run(["ffmpeg", "-v", "error", "-y", "-ss", str(q),
 L.run(["ffmpeg", "-v", "error", "-y", *sum([["-i", f"{P}/_q{i}.png"] for i in range(len(qts))], []), "-filter_complex", f"hstack={len(qts)}", f"{P}/qa.jpg"])
 for i in range(len(qts)): os.remove(f"{P}/_q{i}.png")
 col_ = layout.count_collisions(M)
+ovc = qa_visual.overlay_collisions(M)
+col_["collision_count"] += len(ovc); col_["details"] = col_["details"] + ovc
 M["qa"].update({"collision_count": col_["collision_count"], "face_card_overlaps": col_["face_card_overlaps"], "sub_card_overlaps": col_["sub_card_overlaps"],
-                "collision_details": col_["details"], "lufs": ld["lufs"], "peak": ld["peak"], "duration": pr_["duration"], "render_s": round(render_s, 1)})
+                "overlay_collisions": len(ovc), "collision_details": col_["details"], "lufs": ld["lufs"], "peak": ld["peak"], "duration": pr_["duration"], "render_s": round(render_s, 1)})
 M["outputs"] = {"final": f"{P}/FINAL.mp4", "captions_ass": f"{P}/captions.ass", "captions_srt": f"{P}/captions.srt", "cue_sheet": f"{P}/cue_sheet.tsv", "qa_strip": f"{P}/qa.jpg"}
 save_manifest()
 qdir = f"{P}/artifacts/qa"; os.makedirs(qdir, exist_ok=True)

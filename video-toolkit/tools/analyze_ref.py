@@ -48,9 +48,9 @@ prof["music"] = {"bed_db_in_pauses": round(bed, 1), "silence_fraction": round(si
 prof["colour"] = L.colour_stats(ref)
 faces = L.face_track(ref, 0.25)
 fh = np.array([f[3] / info["h"] for f in faces if f[3]])
-zoom_events = int(np.sum(np.abs(np.diff(fh)) / np.maximum(fh[:-1], 1e-6) > 0.08)) if len(fh) > 2 else 0
+zoom_events = int(np.sum(np.abs(np.diff(fh)) / np.maximum(fh[:-1], 1e-6) > 0.15)) if len(fh) > 2 else 0  # jumps only (not drift/lean)
 prof["framing"] = {"face_found": round(len(fh) / max(1, len(faces)), 2), "face_height_frac": round(float(np.median(fh)), 3) if len(fh) else None,
-                   "face_size_range": [round(float(fh.min()), 3), round(float(fh.max()), 3)] if len(fh) else None,
+                   "face_size_range": [round(float(np.percentile(fh, 15)), 3), round(float(np.percentile(fh, 85)), 3)] if len(fh) else None,  # p15–p85: ignores leaning in/out
                    "zoom_punches_per_min": round(zoom_events / D * 60, 1),
                    "face_y_frac": round(float(np.median([f[2] / info["h"] for f in faces if f[2]])), 3) if len(fh) else None}
 try:
@@ -73,13 +73,19 @@ try:
         if not bands: texts.append(""); continue
         boxes = max(bands, key=lambda bd: sum(q[2] * q[3] for q in bd["b"]))["b"]
         ys = [y + h / 2 for _, y, _, h, _ in boxes]; hs = [h for *_, h, _ in boxes]
-        caps.append((float(np.median(ys)), float(np.median(hs)), len(boxes)))
-        texts.append(" ".join(b[4] for b in boxes))
+        band_text = "".join(b[4] for b in boxes) if lang == "th" else " ".join(b[4] for b in boxes)
+        if lang == "th":  # Thai has no spaces: OCR boxes != words -> count real words
+            from pythainlp.tokenize import word_tokenize as _wt
+            nwords = len([w for w in _wt(band_text, engine="newmm", keep_whitespace=False) if w.strip()])
+        else: nwords = len(boxes)
+        caps.append((float(np.median(ys)), float(np.percentile(hs, 30)), nwords))
+        texts.append(band_text)
         for x, y, w, h, _ in boxes:  # bright/saturated text pixels -> colour palette
             px = img[y:y + h, x:x + w].reshape(-1, 3).astype(int)
             lum = px @ [0.3, 0.6, 0.1]; px = px[lum > np.percentile(lum, 70)]
             for p in (px // 32 * 32 + 16)[:: max(1, len(px) // 200)]: cols[tuple(p)] += 1
-    changes = sum(1 for a, b in zip(texts, texts[1:]) if a != b and b)
+    import difflib as _dl
+    changes = sum(1 for a, b in zip(texts, texts[1:]) if b and _dl.SequenceMatcher(None, a, b).ratio() < 0.6)  # real text change, not OCR noise
     top = [("#%02X%02X%02X" % c) for c, _ in cols.most_common(6)]
     prof["captions"] = {"frames_with_text": round(len(caps) / max(1, len(texts)), 2),
                         "y_center": round(float(np.median([c[0] for c in caps]))) if caps else None,
@@ -104,10 +110,14 @@ if prof["framing"]["face_y_frac"]: ov["zoom"]["face_y"] = float(np.clip(prof["fr
 c = prof.get("captions", {})
 if c.get("y_center"):
     ov["captions"]["y"] = int(np.clip(c["y_center"] + c["text_height_px"] * 0.6, 900, 1440))
-    ov["captions"]["size"] = int(np.clip(c["text_height_px"] * (1.55 if lang == "th" else 2.0), 50, 130))
+    if lang == "th":  # real Thai ink height (upper/lower marks) -> font size via Pillow metrics
+        from vt import layout as _lay
+        ov["captions"]["size"] = int(np.clip(_lay.thai_font_size_for_height(c["text_height_px"], f"{L.A}/fonts/KanitXB.ttf", probe="กาบ"), 40, 130))  # OCR word boxes ≈ base-glyph height
+    else:
+        ov["captions"]["size"] = int(np.clip(c["text_height_px"] * 2.0, 50, 130))
     wos = c["words_on_screen"] or 3
     ov["captions"]["max_words"] = int(np.clip(round(wos), 1, 7))
-    ov["captions"]["style"] = "pop" if wos <= 2.2 and c["changes_per_sec"] >= 1.2 else ("karaoke" if wos <= 5 else "phrase")
+    ov["captions"]["style"] = "pop" if wos <= 2.2 and c["changes_per_sec"] >= 1.0 else ("karaoke" if wos <= 5 else "phrase")
     cs = c.get("colours") or []
     if cs: ov["captions"]["color"] = cs[0]
     sat = [h for h in cs[1:] if max(int(h[1:3], 16), int(h[3:5], 16), int(h[5:7], 16)) - min(int(h[1:3], 16), int(h[3:5], 16), int(h[5:7], 16)) > 80]
@@ -115,9 +125,10 @@ if c.get("y_center"):
 elif c.get("frames_with_text", 1) < 0.15: ov["captions"]["style"] = "none"
 ov["music"]["enabled"] = prof["music"]["likely_music"] or prof["music"]["bed_db_in_pauses"] > -50
 prof["preset_overrides"] = ov
-prof["suggested_base_preset"] = ("bold-hormozi" if prof["cuts"]["per_min"] + zp >= 25 or ov["captions"].get("style") == "pop" else
-                                 "minimal-aesthetic" if ov["captions"].get("size", 80) < 64 else
-                                 "calm-abdaal" if prof["colour"]["saturation"] < 0.18 else "clean-pastel")
+_zr = (ov["zoom"].get("levels") or [1, 1])[1]
+prof["suggested_base_preset"] = ("bold-hormozi" if ov["captions"].get("style") == "pop" or (prof["cuts"]["per_min"] >= 30 and _zr >= 1.15) else
+                                 "minimal-aesthetic" if ov["captions"].get("size", 80) < 60 else
+                                 "calm-abdaal" if prof["colour"]["saturation"] < 0.18 else "thai-clear")
 json.dump(prof, open(f"{out}/style_profile.json", "w"), ensure_ascii=False, indent=1)
 
 R = [f"# Reference style — {prof['file']}", f"- ยาว {D:.1f} วิ · {info['w']}x{info['h']}",
