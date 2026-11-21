@@ -50,6 +50,12 @@ def cmd_doctor(_):
         print("OK  edge-tts (เสียงพากย์ฟรี)")
     except ImportError:
         print("MISSING edge-tts  -> pip install edge-tts   (ไม่มีก็ได้ คลิปจะไม่มีเสียง)")
+    try:
+        import pythainlp  # noqa: F401
+        print("OK  pythainlp (ตัดคำไทยสำหรับซับ)")
+    except ImportError:
+        print("MISSING pythainlp -> pip install pythainlp   (ไม่มีก็ได้ แต่ซับจะตัดคำไม่สวย)")
+    print(f"{'OK ' if config.FONT_FILE.exists() else 'MISSING'} font {config.FONT}")
     key = bool(__import__("os").environ.get("GEMINI_API_KEY"))
     print(f"{'OK ' if key else 'MISSING'} GEMINI_API_KEY in .env")
     ok &= key

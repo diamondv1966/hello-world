@@ -16,7 +16,7 @@ if (-not (Have ffmpeg)) {
 # winget installs need a fresh PATH in this window
 $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User")
 
-python -m pip install --upgrade edge-tts
+python -m pip install --upgrade edge-tts pythainlp
 
 if (-not (Test-Path .env)) {
     $key = Read-Host "Paste your GEMINI_API_KEY (same key as AURIX .env.local; free at aistudio.google.com)"

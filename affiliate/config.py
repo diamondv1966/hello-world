@@ -29,10 +29,13 @@ FB_SLOTS = ["12:05", "18:30", "20:05", "21:10"]
 # --- Content -----------------------------------------------------------------
 GEMINI_MODEL_DEFAULT = "gemini-2.5-flash"
 VOICES = {"female": "th-TH-PremwadeeNeural", "male": "th-TH-NiwatNeural"}
-TTS_RATE = "+8%"
+TTS_RATE = "+10%"         # short-form voices run a little fast
 MIN_VIDEO_SEC = 16.0      # Shopee Video: keep clips at least 15 seconds
-CAPTION_ROW_MAX = 22      # characters per on-screen row
-FONT = "Leelawadee UI" if sys.platform == "win32" else "Loma"
+TITLE_ROW_MAX = 16        # characters per row in the title box / image headline
+FONT_FILE = ROOT / "assets" / "fonts" / "Kanit-Bold.ttf"   # SIL OFL, bundled
+FONT = "Kanit" if FONT_FILE.exists() else ("Leelawadee UI" if sys.platform == "win32" else "Loma")
+MUSIC_DIR = ROOT / "assets" / "music"   # optional: put royalty-free tracks here (see README)
+MUSIC_VOLUME = 0.12
 
 
 def load_env() -> None:

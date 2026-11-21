@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from affiliate import content, render, store  # noqa: E402
+from affiliate import captions, content, store  # noqa: E402
 
 PRODUCT = {"id": "x", "name": "เครื่องฉีดน้ำ อันดับ1", "price": 2600, "url": "https://s.shopee.co.th/abc"}
 
@@ -12,12 +12,13 @@ PRODUCT = {"id": "x", "name": "เครื่องฉีดน้ำ อัน
 def good_copy() -> dict:
     return {
         "angle": "problem_solution", "voice": "male",
-        "video": {"lines": [
-            {"say": "พื้นหน้าบ้านเขียวตะไคร่ทุกหน้าฝน ขัดเท่าไหร่ก็ไม่หมด", "caption": "ตะไคร่หน้าบ้าน\nขัดไม่ออก"},
-            {"say": "ตัวนี้แรงดันหนึ่งร้อยยี่สิบบาร์ สายยาวแปดเมตร", "caption": "แรงดัน 120 บาร์"},
-            {"say": "คนรีวิวบอกว่าฉีดคราบที่พื้นออกง่าย เสียงไม่ดังมาก", "caption": "คนรีวิวบอกว่า\nคราบออกง่าย"},
-            {"say": "วางพิกัดไว้ในตะกร้านะ เผื่อใครหาอยู่", "caption": "พิกัดในตะกร้า"},
+        "video": {"title": "ตะไคร่หน้าบ้าน\nขัดยังไงก็ไม่ออก", "lines": [
+            {"say": "พื้นหน้าบ้านเขียวตะไคร่ทุกหน้าฝน ขัดเท่าไหร่ก็ไม่หมด"},
+            {"say": "ตัวนี้แรงดัน 120 บาร์ สายยาว 8 เมตร"},
+            {"say": "คนรีวิวบอกว่าฉีดคราบที่พื้นออกง่าย เสียงไม่ดังมาก"},
+            {"say": "วางพิกัดไว้ในตะกร้านะ เผื่อใครหาอยู่"},
         ]},
+        "keywords": ["120 บาร์", "ออกง่าย"],
         "image_headline": "ตะไคร่หน้าบ้าน\nจบง่ายขึ้น",
         "shopee_caption": "ตะไคร่หน้าบ้านหายง่ายขึ้น",
         "fb_post": "หน้าฝนทีไรพื้นเขียวทุกที\nบ้านใครเจอบ้าง?",
@@ -69,14 +70,39 @@ class Parsing(unittest.TestCase):
         self.assertEqual(store.status_of(p), "needs_info")  # no images yet
 
 
-class ThaiWrap(unittest.TestCase):
-    def test_never_starts_row_with_a_mark(self):
-        text = "คนรีวิวบอกว่าฉีดคราบออกง่ายและเสียงไม่ดังมากเลยนะ"
-        for row in render.wrap_thai(text, 12)[1:]:
-            self.assertNotIn(row[0], render.THAI_NO_BREAK_BEFORE)
+class Captions(unittest.TestCase):
+    def test_thai_words_and_numbers(self):
+        toks = captions.tokenize("คนรีวิวบอกว่าฉีดคราบออกง่าย แรงดัน 120 บาร์ๆ")
+        self.assertIn("บอก", toks)
+        self.assertIn(" ", toks)
+        self.assertTrue(any(t.endswith("ๆ") for t in toks))  # mai yamok stays on its word
 
-    def test_explicit_rows_kept(self):
-        self.assertEqual(render.wrap_thai("แถวหนึ่ง\\nแถวสอง"), ["แถวหนึ่ง", "แถวสอง"])
+    def test_timings_fill_the_line_in_order(self):
+        words = captions.time_words("ตัวนี้แรงดัน 120 บาร์ สายยาว 8 เมตร", 1.0, 4.0)
+        self.assertAlmostEqual(words[0].start, 1.0)
+        self.assertAlmostEqual(words[-1].end, 4.0, places=5)
+        self.assertTrue(all(a.end <= b.start + 1e-9 for a, b in zip(words, words[1:])))
+
+    def test_chunks_fit_one_row(self):
+        words = captions.time_words("คนรีวิวบอกว่าฉีดคราบที่พื้นออกง่ายมาก แถมเสียงก็ไม่ดังเลย", 0, 5)
+        for ch in captions.chunk(words):
+            self.assertLessEqual(sum(captions.visible_len(w.text) for w in ch), 13 + 6)
+            self.assertLessEqual(len(ch), 4)
+
+    def test_boundaries_used_when_they_match(self):
+        b = [(0.1, 0.3, "ตัว"), (0.4, 0.3, "นี้"), (0.9, 0.5, "ดี")]
+        w = captions.words_from_boundaries("ตัวนี้ ดี", b, 2.0)
+        self.assertEqual([x.text for x in w], ["ตัว", "นี้", "ดี"])
+        self.assertTrue(w[1].space_after)
+        self.assertAlmostEqual(w[0].start, 2.1)
+        self.assertIsNone(captions.words_from_boundaries("อย่างอื่น", b, 0))
+
+    def test_ass_highlights_each_word(self):
+        words = captions.time_words("ตัวนี้ดีมาก", 0, 2)
+        ass = captions.video_ass("หัวข้อ", [words], [2.5], [], 2.5)
+        self.assertEqual(sum(l.startswith("Style:") for l in ass.splitlines()), 3)
+        self.assertEqual(ass.count(",Cap,") + ass.count(",CTA,"), len(words))
+        self.assertIn(captions.ORANGE, ass)
 
 
 if __name__ == "__main__":

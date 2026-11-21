@@ -14,7 +14,7 @@
 3. เปิดหน้าต่าง `affiliate.shopee.co.th` ที่ล็อกอินไว้ ทิ้งไว้ให้บอท
 4. สร้างบอท 5 ตัวในแอป Maus ตาม `docs/MAUS_TEAM.md`
 5. สั่ง `shopee-scout` เติมข้อมูลสินค้า 10-15 ชิ้นแรก แล้วสั่ง `shopee-producer` รัน `run_daily.bat`
-6. อนุมัติในแอป Maus แล้ว `shopee-publisher` จะโพสต์ให้
+6. อนุมัติในแอป Maus แล้ว `shopee-publisher` จะโพสต์ Facebook ให้ และส่งคลิป Shopee Video มาให้คุณกดโพสต์จาก iPhone
 
 ## คำสั่ง
 
@@ -30,13 +30,15 @@
 | `python aff.py report` | สรุปผล |
 
 ปรับจำนวนต่อวัน เวลาโพสต์ และเกณฑ์ค่าคอมได้ที่ `affiliate/config.py`
+เพลงประกอบ (ไม่บังคับ): วางไฟล์ .mp3 ที่ได้สิทธิ์ใช้ เช่น จาก YouTube Audio Library ใน `assets/music/` ระบบจะสุ่มใส่เบา ๆ ใต้เสียงพูด
 ทดสอบ: `python -m unittest tests/test_pipeline.py`
 
 ## โครงสร้าง
 
 ```
 aff.py                 คำสั่งทั้งหมด
-affiliate/             config, store (สินค้า), content (Gemini + ตรวจกฎ), render (คลิป/ภาพ), planner, tracker
+affiliate/             config, store (สินค้า), content (Gemini + ตรวจกฎ), captions (ซับไทยทีละคำ), render (คลิป/ภาพ), planner, tracker
+assets/fonts/          ฟอนต์ Kanit Bold (SIL OFL)
 prompts/               prompt เขียนคอนเทนต์ (มุมขาย + กฎความจริง)
 data/products/         สินค้า 1 ไฟล์ต่อชิ้น (ย้ายมาจาก AURIX 48 ชิ้น)
 data/inbox/            scout วางไฟล์ที่นี่ (ดู TEMPLATE.txt, LINKS_TO_SCOUT.md)
