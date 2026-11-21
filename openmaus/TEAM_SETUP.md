@@ -97,10 +97,14 @@
 2. ตรวจทุกโฟลเดอร์ใน out/<วันนี้>/ ตาม openmaus/QUALITY_STANDARD.md หมวด "ตรวจคลิป" และ "ตรวจข้อความ" ทุกข้อ
    - ชิ้นที่ไม่ผ่านเพราะข้อความ: python aff.py generate --id <id> --force แล้วรัน python aff.py daily ใหม่
    - ชิ้นที่ไม่ผ่านเพราะรูป: ตัดออก แล้วแจ้งในรายงานให้ scout เก็บรูปใหม่
-3. ส่งคำขออนุมัติเข้าแอป Maus: ตารางจาก APPROVAL.md + image.jpg ทุกชิ้น + คลิปอย่างน้อย 2 ชิ้นให้เจ้าของสุ่มดู
+3. เรียนรู้และอัปเกรด (openmaus/LEARNING_LOOP.md):
+   - บันทึกบทเรียนจากการตรวจของวันนี้อย่างน้อย 1 ข้อ: python aff.py lesson "..." --tag video --evidence <ไฟล์> --source shopee-producer
+   - ถ้าเจ้าของบอกว่าเครื่องมือทำคลิป AI ฟรีใช้ได้: ทำ B-roll ให้ 1-2 ชิ้นต่อวันตามกติกา B-roll แล้วรัน python aff.py daily ใหม่
+4. ส่งคำขออนุมัติเข้าแอป Maus: ตารางจาก APPROVAL.md + image.jpg ทุกชิ้น + คลิปอย่างน้อย 2 ชิ้นให้เจ้าของสุ่มดู
    + ผลตรวจของคุณเป็นตาราง ชิ้น / ผ่าน-ไม่ผ่าน / เหตุผล
-4. เมื่อเจ้าของตอบ: python aff.py approve all  หรือ  python aff.py approve 1,2,5 --reject-others
+5. เมื่อเจ้าของตอบ: python aff.py approve all  หรือ  python aff.py approve 1,2,5 --reject-others
    แล้วรายงานว่าอนุมัติชิ้นไหน เพื่อให้เจ้าของส่งต่อ shopee-publisher (ห้ามสั่งบอทอื่นเอง)
+   ถ้าเจ้าของติหรือชมงาน บันทึกทันที: python aff.py lesson "<สิ่งที่เจ้าของบอก>" --tag <video|copy|product> --source owner
 ```
 
 ## ส่วนที่ 3 — `shopee-publisher`
@@ -137,7 +141,9 @@ Facebook Page (เริ่มหลังเจ้าของสร้าง�
 3. เช็กเมนู "วิดีโอที่มีสินค้าแล้วไม่มีค่าคอมมิชชัน" ถ้ามี แจ้งรายการที่เจ้าของต้องเปลี่ยนตะกร้า
 4. รัน python aff.py report แล้วส่งสรุปเข้าแอป Maus: โพสต์กี่ชิ้น คลิก ออเดอร์ ค่าคอม สินค้าที่ดีที่สุด 3 อันดับ
 
-ทุกวันอาทิตย์: เสนอ 3 ข้อว่าควรเพิ่มหมวดไหน ตัดหมวดไหน มุมขายไหนได้ผล (อิงตัวเลขเท่านั้น ถ้าข้อมูลยังน้อยให้บอกว่ายังสรุปไม่ได้)
+ทุกวันอาทิตย์: ทำ "รอบสัปดาห์" ตาม openmaus/LEARNING_LOOP.md ทั้ง 6 ข้อ
+(learn → อ่าน lessons → ค้นคว้าเทรนด์ 20 นาที → อัปเดต data/learning/playbook.md ตามกติกา → เขียน proposals.md → รายงานเจ้าของ)
+เขียนไฟล์ได้เพิ่ม: data/learning/playbook.md และ data/learning/proposals.md เท่านั้น
 ```
 
 ## ส่วนที่ 5 — `pc-care`

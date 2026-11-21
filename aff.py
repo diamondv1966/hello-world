@@ -8,6 +8,8 @@
   python aff.py posted 3 shopee_video [post_url]    mark item 3 posted (also: facebook)
   python aff.py stat <product_id> <platform> clicks=12 orders_direct=1 commission_net=35 [--date D]
   python aff.py report                 summary -> out/REPORT.md
+  python aff.py learn                  learn which angles/styles/themes/voices earn more -> data/learning/
+  python aff.py lesson "..." --tag video --evidence <file>   record a lesson for the playbook
 """
 import argparse
 import json
@@ -21,7 +23,7 @@ from pathlib import Path
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")  # Thai in the Windows console
 
-from affiliate import config, content, planner, store, tracker  # noqa: E402
+from affiliate import config, content, learning, planner, store, tracker  # noqa: E402
 
 
 def plan_path(day: str) -> Path:
@@ -122,7 +124,8 @@ def cmd_posted(a):
     p.setdefault("posted", {})[a.platform] = day
     store.save(p)
     ctype = "video" if a.platform == "shopee_video" else (item.get("facebook_type") or "image")
-    tracker.log_post(p, a.platform, ctype, a.url or "", item.get("video_sec", ""), day)
+    variant = f"{item.get('style', '')}|{item.get('theme', '')}|{item.get('voice_used') or item.get('voice', '')}"
+    tracker.log_post(p, a.platform, ctype, a.url or "", item.get("video_sec", ""), day, variant)
     print(f"logged item {a.no} on {a.platform}")
 
 
@@ -130,6 +133,17 @@ def cmd_stat(a):
     values = dict(kv.split("=", 1) for kv in a.values)
     day = a.date or date.today().isoformat()
     print("updated" if tracker.set_stats(day, a.id, a.platform, values) else "row not found")
+
+
+def cmd_learn(_):
+    w = learning.learn()
+    print(learning.INSIGHTS.read_text(encoding="utf-8"))
+    print(f"-> {learning.WEIGHTS} (measured posts: {w['measured_posts']})")
+
+
+def cmd_lesson(a):
+    e = learning.add_lesson(a.text, a.tag, a.evidence or "", a.source)
+    print(f"saved lesson [{e['tag']}] {e['lesson'][:60]}")
 
 
 def cmd_report(_):
@@ -191,6 +205,13 @@ def main():
     st.add_argument("--date")
     st.set_defaults(f=cmd_stat)
     sub.add_parser("report").set_defaults(f=cmd_report)
+    sub.add_parser("learn").set_defaults(f=cmd_learn)
+    le = sub.add_parser("lesson")
+    le.add_argument("text")
+    le.add_argument("--tag", default="general", help="video / copy / product / posting / general")
+    le.add_argument("--evidence", help="file, post link or numbers that show it")
+    le.add_argument("--source", default="bot", help="bot name or owner")
+    le.set_defaults(f=cmd_lesson)
     a = ap.parse_args()
     a.f(a)
 

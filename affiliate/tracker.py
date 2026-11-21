@@ -40,7 +40,7 @@ def write(rows: list[dict]) -> None:
 
 
 def log_post(p: dict, platform: str, content_type: str, post_url: str = "", video_sec: float | str = "",
-             day: str | None = None) -> None:
+             day: str | None = None, variant: str = "") -> None:
     extra = p.get("extra_rate")
     rows = read()
     rows.append({
@@ -50,7 +50,7 @@ def log_post(p: dict, platform: str, content_type: str, post_url: str = "", vide
         "price_listed": p.get("price", ""), "commission_type": "xtra" if extra else "base",
         "base_rate": config.BASE_RATE, "xtra_rate": extra if extra is not None else "",
         "total_rate": p.get("total_rate") or (config.BASE_RATE + extra if extra is not None else ""),
-        "utm_source": platform, "utm_content": p.get("content", {}).get("angle", ""),
+        "utm_source": platform, "utm_content": p.get("content", {}).get("angle", ""), "utm_campaign": variant,
         "api_cost_thb": 0, "ai_label_on": 1 if platform == "shopee_video" else "",
         "is_ai_content": 1, "is_mission": 0, "country": "TH",
     })

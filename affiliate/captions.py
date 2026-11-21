@@ -22,6 +22,18 @@ ORANGE = "&H002D4DEE"      # #EE4D2D Shopee orange (title box)
 KEYWORD = "&H00458AFF"     # #FF8A45 keywords
 SHADOW = "&H96000000"
 
+# Colour themes so clips do not all look the same; the planner picks one per clip (learning.choose).
+THEMES = {
+    "shopee": {"title_box": ORANGE, "title_text": WHITE, "active": YELLOW, "cta_box": YELLOW, "cta_text": BLACK,
+               "cta_active": ORANGE},
+    "night": {"title_box": "&H00151515", "title_text": WHITE, "active": "&H00FFE14D", "cta_box": WHITE,
+              "cta_text": BLACK, "cta_active": "&H002D2DE0"},
+    "mint": {"title_box": "&H007FA310", "title_text": WHITE, "active": YELLOW, "cta_box": "&H007FA310",
+             "cta_text": WHITE, "cta_active": YELLOW},
+    "berry": {"title_box": "&H005B18C2", "title_text": WHITE, "active": YELLOW, "cta_box": YELLOW, "cta_text": BLACK,
+              "cta_active": "&H005B18C2"},
+}
+
 
 @dataclass
 class Word:
@@ -184,13 +196,14 @@ def _render_chunk(ch: list[Word], active: int, keywords: list[str], active_colou
 
 
 def video_ass(title: str, lines_words: list[list[Word]], line_ends: list[float], keywords: list[str],
-              total: float) -> str:
+              total: float, theme: str = "shopee") -> str:
     """Title box at the top for the whole clip; word-synced captions lower-middle; last line styled as CTA."""
+    th = THEMES.get(theme, THEMES["shopee"])
     title_rows = [r.strip() for r in title.replace("\\n", "\n").split("\n") if r.strip()][:2]
     ass = header(1080, 1920, [
-        _style("Title", 80, WHITE, ORANGE, ORANGE, 3, 18, 0, 8, 215),
+        _style("Title", 80, th["title_text"], th["title_box"], th["title_box"], 3, 18, 0, 8, 215),
         _style("Cap", 104, WHITE, BLACK, SHADOW, 1, 8, 3, 2, 410),
-        _style("CTA", 92, BLACK, YELLOW, YELLOW, 3, 16, 0, 2, 430),
+        _style("CTA", 92, th["cta_text"], th["cta_box"], th["cta_box"], 3, 16, 0, 2, 430),
     ])
     if title_rows:
         rows = "\\N".join(_escape(r) for r in title_rows)
@@ -200,8 +213,8 @@ def video_ass(title: str, lines_words: list[list[Word]], line_ends: list[float],
         chunks = chunk(words)
         is_cta = li == last
         style = "CTA" if is_cta else "Cap"
-        active_colour = "&H002D4DEE" if is_cta else YELLOW
-        base_colour = BLACK if is_cta else WHITE
+        active_colour = th["cta_active"] if is_cta else th["active"]
+        base_colour = th["cta_text"] if is_cta else WHITE
         for ci, ch in enumerate(chunks):
             next_start = chunks[ci + 1][0].start if ci + 1 < len(chunks) else line_end
             for wi, w in enumerate(ch):
@@ -213,8 +226,9 @@ def video_ass(title: str, lines_words: list[list[Word]], line_ends: list[float],
     return ass
 
 
-def image_ass(headline: str) -> str:
+def image_ass(headline: str, theme: str = "shopee") -> str:
+    th = THEMES.get(theme, THEMES["shopee"])
     rows = [r.strip() for r in headline.replace("\\n", "\n").split("\n") if r.strip()][:2]
-    ass = header(1080, 1350, [_style("Head", 74, WHITE, ORANGE, ORANGE, 3, 18, 0, 8, 60, 80)])
+    ass = header(1080, 1350, [_style("Head", 74, th["title_text"], th["title_box"], th["title_box"], 3, 18, 0, 8, 60, 80)])
     joined = "\\N".join(_escape(r) for r in rows)
     return ass + f"Dialogue: 0,0:00:00.00,0:00:05.00,Head,,0,0,0,,{joined}\n"

@@ -7,7 +7,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime
 
-from . import config, store
+from . import config, learning, store
 from .captions import visible_len
 
 ANGLES = ["problem_solution", "value_deal", "style_pick", "gift_idea", "how_it_works", "seasonal"]
@@ -32,6 +32,7 @@ SCHEMA = {
             "required": ["title", "lines"],
         },
         "keywords": {"type": "ARRAY", "items": S},
+        "broll_prompts": {"type": "ARRAY", "items": S},
         "image_headline": S,
         "shopee_caption": S,
         "fb_post": S,
@@ -67,7 +68,9 @@ def build_prompt(p: dict, feedback: list[str] | None = None) -> str:
     if feedback:
         fb = "\n## รอบก่อนไม่ผ่านการตรวจ แก้ให้ครบทุกข้อ\n" + "\n".join(f"- {x}" for x in feedback)
     tpl = config.PROMPT.read_text(encoding="utf-8")
-    return tpl.replace("{{product}}", product_facts(p)).replace("{{feedback}}", fb)
+    notes = learning.prompt_notes()
+    notes = f"\n## บทเรียนจากงานที่ผ่านมา (ทำตาม เว้นแต่ขัดกับกฎความจริง)\n{notes}\n" if notes else ""
+    return tpl.replace("{{product}}", product_facts(p)).replace("{{feedback}}", fb).replace("{{learning}}", notes)
 
 
 def gemini(prompt: str) -> dict:
@@ -123,7 +126,7 @@ def qc(p: dict, c: dict) -> list[str]:
     if not 4 <= len(lines) <= 7:
         problems.append(f"video.lines ต้องมี 4-6 บรรทัด (ได้ {len(lines)})")
     spoken = sum(visible_len(l.get("say", "")) for l in lines)
-    if not 70 <= spoken <= 260:
+    if not 100 <= spoken <= 260:
         problems.append(f"บทพูดรวม {spoken} ตัวอักษร ต้องอยู่ระหว่าง 90-200")
     for i, l in enumerate(lines):
         say = l.get("say", "")

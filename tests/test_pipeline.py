@@ -4,7 +4,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from affiliate import captions, content, store  # noqa: E402
+import random  # noqa: E402
+import tempfile  # noqa: E402
+
+from affiliate import captions, config, content, learning, render, store, tracker  # noqa: E402
 
 PRODUCT = {"id": "x", "name": "เครื่องฉีดน้ำ อันดับ1", "price": 2600, "url": "https://s.shopee.co.th/abc"}
 
@@ -113,6 +116,55 @@ class Captions(unittest.TestCase):
         self.assertEqual(sum(l.startswith("Style:") for l in ass.splitlines()), 3)
         self.assertEqual(ass.count(",Cap,") + ass.count(",CTA,"), len(words))
         self.assertIn(captions.ORANGE, ass)
+
+
+class Learning(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.old = (config.TRACKER, learning.DIR, learning.WEIGHTS, learning.INSIGHTS, learning.LESSONS)
+        d = Path(self.tmp.name)
+        config.TRACKER = d / "posts.csv"
+        learning.DIR, learning.WEIGHTS, learning.INSIGHTS, learning.LESSONS = d, d / "w.json", d / "i.md", d / "l.jsonl"
+
+    def tearDown(self):
+        config.TRACKER, learning.DIR, learning.WEIGHTS, learning.INSIGHTS, learning.LESSONS = self.old
+        self.tmp.cleanup()
+
+    def test_learns_which_style_earns_more(self):
+        rows = []
+        for i in range(4):
+            rows.append({"date": "2026-11-21", "link_id": f"a{i}", "platform": "shopee_video", "utm_content": "value_deal",
+                         "utm_campaign": "quickcut|mint|th-TH-NiwatNeural", "clicks": "20", "commission_net": "60"})
+            rows.append({"date": "2026-11-21", "link_id": f"b{i}", "platform": "shopee_video", "utm_content": "style_pick",
+                         "utm_campaign": "framed|shopee|th-TH-NiwatNeural", "clicks": "5", "commission_net": "0"})
+        tracker.write(rows)
+        w = learning.learn()
+        styles = w["dimensions"]["style"]
+        self.assertEqual(next(iter(styles)), "quickcut")
+        self.assertTrue(styles["quickcut"]["proven"])
+        picks = [learning.choose("style", render.STYLES, random.Random(s), w) for s in range(200)]
+        self.assertGreater(picks.count("quickcut"), 120)       # mostly the winner
+        self.assertGreater(len(set(picks)), 1)                 # but still exploring
+
+    def test_untried_options_get_tried_first(self):
+        self.assertIn(learning.choose("theme", list(captions.THEMES), random.Random(1), {"dimensions": {}}),
+                      captions.THEMES)
+
+    def test_lesson_is_appended(self):
+        learning.add_lesson("เว้นช่วงเงียบน้อยลง", "video", "out/x/video.mp4", "owner")
+        self.assertIn("เว้นช่วงเงียบ", learning.LESSONS.read_text(encoding="utf-8"))
+
+
+class ShotPlan(unittest.TestCase):
+    def test_broll_only_between_real_photos(self):
+        shots = render._shot_plan([2, 2, 2, 2], "framed", 3, 1, random.Random(0))
+        self.assertEqual(shots[0][0], "photo")
+        self.assertEqual(shots[-1][0], "photo")
+        self.assertIn("clip", [s[0] for s in shots])
+
+    def test_quickcut_doubles_the_shots(self):
+        self.assertEqual(len(render._shot_plan([2, 2, 2], "quickcut", 3, 0, random.Random(0))), 6)
+        self.assertAlmostEqual(sum(s[2] for s in render._shot_plan([2, 2, 2], "quickcut", 3, 0, random.Random(0))), 6)
 
 
 if __name__ == "__main__":

@@ -30,9 +30,11 @@ FB_SLOTS = ["12:05", "18:30", "20:05", "21:10"]
 
 # --- Content -----------------------------------------------------------------
 GEMINI_MODEL_DEFAULT = "gemini-2.5-flash"
-VOICES = {"female": "th-TH-PremwadeeNeural", "male": "th-TH-NiwatNeural"}
+VOICES = {"female": ["th-TH-PremwadeeNeural", "th-TH-AcharaNeural"], "male": ["th-TH-NiwatNeural"]}  # fallbacks in order
 TTS_RATE = "+10%"         # short-form voices run a little fast
-MIN_VIDEO_SEC = 16.0      # Shopee Video: keep clips at least 15 seconds
+MIN_VIDEO_SEC = 15.0      # target length; reached with a longer script, never with silence
+LINE_GAP = 0.12           # seconds of breath between spoken lines
+END_TAIL = 0.5            # seconds after the last word so the CTA box can be read
 TITLE_ROW_MAX = 16        # characters per row in the title box / image headline
 FONT_FILE = ROOT / "assets" / "fonts" / "Kanit-Bold.ttf"   # SIL OFL, bundled
 FONT = "Kanit" if FONT_FILE.exists() else ("Leelawadee UI" if sys.platform == "win32" else "Loma")

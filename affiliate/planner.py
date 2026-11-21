@@ -4,7 +4,9 @@ import math
 from collections import Counter
 from datetime import date, datetime, timedelta
 
-from . import config, content, render, store
+import random
+
+from . import captions, config, content, learning, render, store
 
 
 def expected_commission(p: dict) -> float:
@@ -51,6 +53,7 @@ def daily(day: date | None = None, count: int | None = None, render_media: bool 
     out = config.OUT / day.isoformat()
     out.mkdir(parents=True, exist_ok=True)
     chosen = select(day, count)
+    weights = learning.load_weights()
     if not chosen:
         raise SystemExit("ไม่มีสินค้าที่พร้อม (status=ready). ให้ scout เติมรูป/ค่าคอม/จุดเด่นก่อน: python aff.py todo")
 
@@ -74,21 +77,29 @@ def daily(day: date | None = None, count: int | None = None, render_media: bool 
         (folder / "fb_first_comment.txt").write_text(c["fb_first_comment"].replace("{LINK}", p["url"]) + "\n",
                                                      encoding="utf-8")
         (folder / "link.txt").write_text(p["url"] + "\n", encoding="utf-8")
-        sec = ""
+        if c.get("broll_prompts"):
+            (folder / "broll_prompts.txt").write_text("\n\n".join(c["broll_prompts"]) + "\n", encoding="utf-8")
+        rng = random.Random(f"{day.isoformat()}-{p['id']}")
+        style = learning.choose("style", render.STYLES, rng, weights)
+        theme = learning.choose("theme", list(captions.THEMES), rng, weights)
+        sec, voice_used, broll = "", "", 0
         if render_media:
             imgs = store.image_files(p)
             try:
-                sec = render.make_video(c, imgs, folder / "video.mp4")
-                render.make_image(c, imgs[0], folder / "image.jpg")
+                info = render.make_video(c, imgs, folder / "video.mp4", style, theme, store.clip_files(p),
+                                         seed=rng.randrange(10**6))
+                render.make_image(c, imgs[0], folder / "image.jpg", theme)
             except Exception as e:  # noqa: BLE001 - one bad photo must not stop the day
                 print(f"   ! render failed: {str(e)[:300]}")
                 continue
-            print(f"   video {sec}s + image ok")
+            sec, voice_used, broll = info["seconds"], info["voice"], info["broll"]
+            print(f"   video {sec}s ({style}/{theme}, voice {voice_used}, b-roll {broll}) + image ok")
         items.append({"no": n, "id": p["id"], "name": p["name"], "url": p["url"], "category": p.get("category"),
                       "price": p.get("price"), "extra_rate": p.get("extra_rate"),
                       "commission_thb": store.commission_per_order(p), "score": score(p),
                       "angle": c["angle"], "audience": c.get("audience", ""), "fb_format": c.get("fb_format"),
-                      "fb_format_reason": c.get("fb_format_reason", ""), "voice": c["voice"], "video_sec": sec, "folder": folder.name})
+                      "fb_format_reason": c.get("fb_format_reason", ""), "voice": c["voice"], "voice_used": voice_used,
+                      "style": style, "theme": theme, "broll": broll, "video_sec": sec, "folder": folder.name})
 
     # schedule: every item goes to Shopee Video, the top N by score also to the Facebook Page
     by_score = sorted(items, key=lambda i: i["score"], reverse=True)
@@ -114,13 +125,15 @@ def daily(day: date | None = None, count: int | None = None, render_media: bool 
 def write_approval(out, plan: dict) -> None:
     rows = [f"# ชุดอนุมัติประจำวัน {plan['date']}", "",
             "ตอบในแอป Maus ว่า `อนุมัติทั้งหมด` หรือ `อนุมัติ 1,2,5` หรือ `ไม่อนุมัติ 3 เพราะ ...`", "",
-            "| # | สินค้า | ค่าคอม/ออเดอร์ | กลุ่มลูกค้า | มุมขาย | Shopee Video | Facebook |", "|---|---|---|---|---|---|---|"]
+            "| # | สินค้า | ค่าคอม/ออเดอร์ | กลุ่มลูกค้า | มุมขาย | ภาพ/ธีม | ยาว | Shopee Video | Facebook |",
+            "|---|---|---|---|---|---|---|---|---|"]
     for i in plan["items"]:
         extra = (f"฿{i['commission_thb']:.0f} ({i['extra_rate']}%)" if i["extra_rate"] is not None
                  else f"~฿{i['commission_thb']:.0f} (ยังไม่ยืนยัน)")
         fb = f"{i['facebook_time']} ({i['facebook_type']})" if i["facebook_time"] else "-"
+        look = f"{i.get('style', '')}/{i.get('theme', '')}" + (f" +B-roll {i['broll']}" if i.get("broll") else "")
         rows.append(f"| {i['no']} | {i['name'][:38]} | {extra} | {i.get('audience', '')[:40]} | {i['angle']} | "
-                    f"{i['shopee_time']} | {fb} |")
+                    f"{look} | {i.get('video_sec', '')}s | {i['shopee_time']} | {fb} |")
     fb_notes = [f"- #{i['no']} {i['facebook_type']}: {i.get('fb_format_reason', '')}" for i in plan["items"] if i["facebook_time"]]
     if fb_notes:
         rows += ["", "เหตุผลที่เลือกรูปแบบโพสต์ Facebook", *fb_notes]

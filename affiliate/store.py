@@ -93,6 +93,12 @@ def commission_per_order(p: dict) -> float:
     return round(base + price * extra / 100, 2)
 
 
+def clip_files(p: dict) -> list[Path]:
+    """Optional AI/stock B-roll for this product: media/<id>/clips/*.mp4"""
+    folder = config.MEDIA / p["id"] / "clips"
+    return sorted(folder.glob("*.mp4")) if folder.exists() else []
+
+
 def status_of(p: dict) -> str:
     """skip = Extra Comm known and below the minimum; needs_info = scout must fill data; ready."""
     if p.get("skip_reason"):
