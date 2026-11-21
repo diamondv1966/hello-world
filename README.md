@@ -3,7 +3,7 @@
 สายพานผลิตคอนเทนต์ Shopee Affiliate ที่รันบน Windows ด้วยของฟรีทั้งหมด และมีทีมบอท Maus คุมงานประจำวัน
 
 - แผนและกลยุทธ์: [docs/PLAN.md](docs/PLAN.md)
-- ทีมบอท Maus 5 ตัว (ข้อความวางในช่องคำสั่งระบบ): [docs/MAUS_TEAM.md](docs/MAUS_TEAM.md)
+- **ชุดเตรียมพร้อม OpenMaus (เริ่มที่นี่):** [openmaus/README.md](openmaus/README.md)
 
 ## เริ่มใช้วันนี้ (ประมาณ 30 นาที)
 
@@ -12,7 +12,7 @@
 2. เปิด PowerShell ในโฟลเดอร์นั้น รัน `powershell -ExecutionPolicy Bypass -File setup.ps1`
    (ติดตั้ง Python, FFmpeg, edge-tts และถามคีย์ Gemini ใช้คีย์เดียวกับ AURIX ได้)
 3. เปิดหน้าต่าง `affiliate.shopee.co.th` ที่ล็อกอินไว้ ทิ้งไว้ให้บอท
-4. สร้างบอท 5 ตัวในแอป Maus ตาม `docs/MAUS_TEAM.md`
+4. สร้างบอท 5 ตัวในแอป Maus ตาม `openmaus/TEAM_SETUP.md` แล้วทำใบสั่งงานใน `openmaus/orders/` ทีละรอบ
 5. สั่ง `shopee-scout` เติมข้อมูลสินค้า 10-15 ชิ้นแรก แล้วสั่ง `shopee-producer` รัน `run_daily.bat`
 6. อนุมัติในแอป Maus แล้ว `shopee-publisher` จะโพสต์ Facebook ให้ และส่งคลิป Shopee Video มาให้คุณกดโพสต์จาก iPhone
 

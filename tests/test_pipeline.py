@@ -63,6 +63,12 @@ class Parsing(unittest.TestCase):
         self.assertEqual(raw["images"], ["http://a/1.jpg"])
         self.assertEqual(store.product_id(raw["url"]), "Q1w2")
 
+    def test_full_size_image_url(self):
+        self.assertEqual(store.full_size_url("https://down-th.img.susercontent.com/file/abc_tn"),
+                         "https://down-th.img.susercontent.com/file/abc")
+        self.assertEqual(store.full_size_url("https://x/file/abc_tn?x=1"), "https://x/file/abc?x=1")
+        self.assertEqual(store.full_size_url("https://x/file/abc_tnx"), "https://x/file/abc_tnx")
+
     def test_status(self):
         p = {"id": "zz_none", "extra_rate": 5, "features": ["x"]}
         self.assertEqual(store.status_of(p), "skip")

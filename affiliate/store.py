@@ -7,6 +7,7 @@ import hashlib
 import json
 import re
 import shutil
+import subprocess
 import urllib.request
 from datetime import date
 from pathlib import Path
@@ -29,6 +30,7 @@ SCALAR_LABELS = {
 }
 LIST_LABELS = {"รีวิว": "reviews", "จุดเด่น": "features", "รูป": "images"}
 NUMERIC = {"price", "total_rate", "extra_rate", "rating", "sold"}
+MIN_IMAGE_SIDE = 500  # px; smaller photos look blurry at 880 px in the clip
 
 
 def product_id(url: str) -> str:
@@ -130,7 +132,23 @@ def parse_block(block: str) -> dict:
     return raw
 
 
+def full_size_url(src: str) -> str:
+    """Shopee CDN thumbnails end in _tn; the same path without it is the full-size photo."""
+    return re.sub(r"_tn(?=$|[?#])", "", src.strip())
+
+
+def image_size(path: Path) -> tuple[int, int] | None:
+    try:
+        r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                            "stream=width,height", "-of", "csv=p=0", str(path)], capture_output=True, text=True)
+        w, h = (int(x) for x in r.stdout.strip().split(",")[:2])
+        return w, h
+    except Exception:  # noqa: BLE001 - unreadable file or ffprobe missing
+        return None
+
+
 def fetch_image(src: str, dest: Path) -> bool:
+    src = full_size_url(src)
     try:
         if src.startswith("http"):
             req = urllib.request.Request(src, headers={"User-Agent": "Mozilla/5.0"})
@@ -141,10 +159,17 @@ def fetch_image(src: str, dest: Path) -> bool:
             dest.write_bytes(data)
         else:
             shutil.copyfile(Path(src).expanduser(), dest)
-        return True
     except Exception as e:  # noqa: BLE001 - report and continue with other images
         print(f"   ! image failed: {src[:80]} ({e})")
         return False
+    size = image_size(dest)
+    if size and min(size) < MIN_IMAGE_SIDE:
+        dest.unlink()
+        print(f"   ! image too small {size[0]}x{size[1]}, skipped: {src[:80]}")
+        return False
+    if size and min(size) < 600:
+        print(f"   ~ image is small ({size[0]}x{size[1]}); a larger one would look sharper")
+    return True
 
 
 def merge(raw: dict) -> dict:
@@ -165,7 +190,7 @@ def merge(raw: dict) -> dict:
         start = len(image_files(p))
         for i, src in enumerate(images[:6]):
             ext = ".png" if src.lower().split("?")[0].endswith(".png") else ".jpg"
-            fetch_image(src, folder / f"img_{start + i + 1}{ext}")
+            fetch_image(src, folder / f"img_{start + i + 1:02d}{ext}")  # zero-padded keeps the scout's order
     if raw.keys() & {"features", "reviews", "name", "price"}:
         p.pop("content", None)  # facts changed: regenerate the copy
     save(p)
