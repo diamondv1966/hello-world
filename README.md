@@ -10,7 +10,7 @@
 1. ดาวน์โหลดโปรเจกต์นี้ลงเครื่อง เช่น `C:\shopee-affiliate`
    (`git clone https://github.com/diamondv1966/hello-world C:\shopee-affiliate` แล้ว `git checkout claude/awesome-faraday-pj20x4`)
 2. เปิด PowerShell ในโฟลเดอร์นั้น รัน `powershell -ExecutionPolicy Bypass -File setup.ps1`
-   (ติดตั้ง Python, FFmpeg, edge-tts และถามคีย์ Gemini ใช้คีย์เดียวกับ AURIX ได้)
+   (ติดตั้ง Python, FFmpeg, edge-tts, pythainlp และสร้างไฟล์ `.env` ให้เจ้าของวางคีย์ Gemini เอง)
 3. เปิดหน้าต่าง `affiliate.shopee.co.th` ที่ล็อกอินไว้ ทิ้งไว้ให้บอท
 4. สร้างบอท 5 ตัวในแอป Maus ตาม `openmaus/TEAM_SETUP.md` แล้วทำใบสั่งงานใน `openmaus/orders/` ทีละรอบ
 5. สั่ง `shopee-scout` เติมข้อมูลสินค้า 10-15 ชิ้นแรก แล้วสั่ง `shopee-producer` รัน `run_daily.bat`
@@ -23,7 +23,7 @@
 | `python aff.py doctor` | ตรวจว่าเครื่องพร้อม |
 | `python aff.py import` | นำเข้าไฟล์ที่ scout เขียนไว้ใน `data/inbox/` |
 | `python aff.py todo` | สินค้าที่ยังขาดข้อมูล |
-| `python aff.py daily` | คัด 10 ชิ้น เขียนคอนเทนต์ ตรวจ ทำคลิปและภาพ ลง `out/<วันที่>/` |
+| `python aff.py daily` | คัดสินค้าประจำวัน (เริ่ม 5 ชิ้น) เขียนคอนเทนต์ ตรวจ ทำคลิปและภาพ ลง `out/<วันที่>/` |
 | `python aff.py approve all` | บันทึกการอนุมัติ |
 | `python aff.py posted 3 shopee_video <ลิงก์>` | บันทึกว่าโพสต์แล้ว และลง tracker |
 | `python aff.py stat <id> facebook clicks=10 commission_net=25` | ใส่ยอดลง tracker |
