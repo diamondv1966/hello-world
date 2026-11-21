@@ -9,17 +9,21 @@ Video recipe (short-form best practice, see docs/PLAN.md "การผลิต�
       quickcut = two shots per line, alternating photos and motions (faster pacing)
   - optional AI B-roll: clips in media/<id>/clips/*.mp4 are cut in between the real photos
   - word-synced captions in the lower-middle safe area, current word highlighted, colour theme per clip
-  - AI voice (edge-tts, free), loudness normalised to -14 LUFS, optional quiet music
+  - AI voice: Gemini TTS first (natural), Edge voices as the free fallback; loudness normalised to -14 LUFS, optional quiet music
 Needs ffmpeg/ffprobe on PATH. If every voice fails the clip is rendered silent with captions.
 """
 import asyncio
+import base64
 import copy
 import json
+import os
 import re
 import random
 import shutil
 import subprocess
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 from . import captions, config
@@ -49,6 +53,38 @@ def duration(path: Path) -> float:
     return float(json.loads(r.stdout)["format"]["duration"])
 
 
+_DEAD_ENGINES: set[str] = set()   # engines whose quota ran out during this run
+
+
+class QuotaExhausted(RuntimeError):
+    pass
+
+
+def _tts_gemini(text: str, name: str, out: Path) -> int:
+    """Gemini TTS -> raw 16-bit PCM in out. Returns the sample rate."""
+    key = os.environ.get("GEMINI_API_KEY")
+    if not key:
+        raise QuotaExhausted("no GEMINI_API_KEY in .env")
+    body = json.dumps({
+        "contents": [{"parts": [{"text": f"{config.GEMINI_TTS_STYLE}\n{text}"}]}],
+        "generationConfig": {"responseModalities": ["AUDIO"],
+                             "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": name}}}},
+    }).encode()
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{config.GEMINI_TTS_MODEL}:generateContent"
+    req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json", "x-goog-api-key": key})
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            data = json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        if e.code == 429:
+            raise QuotaExhausted("Gemini TTS quota used up") from e
+        raise RuntimeError(f"Gemini TTS HTTP {e.code}: {e.read()[:200]!r}") from e
+    part = data["candidates"][0]["content"]["parts"][0]["inlineData"]
+    out.write_bytes(base64.b64decode(part["data"]))
+    m = re.search(r"rate=(\d+)", part.get("mimeType", ""))
+    return int(m.group(1)) if m else 24000
+
+
 async def _tts(text: str, voice: str, out: Path) -> list[tuple[float, float, str]]:
     import edge_tts
     try:
@@ -69,12 +105,23 @@ async def _tts(text: str, voice: str, out: Path) -> list[tuple[float, float, str
 
 def _speak_line(text: str, voice: str, work: Path, i: int) -> tuple[float, list]:
     """Synthesize one line and cut the silence around the speech. Returns (seconds, word boundaries)."""
-    mp3, wav = work / f"l{i}.mp3", f"t{i}.wav"
-    last_error = None
-    for attempt in range(4):  # the free voice service throttles bursts: back off and retry
+    engine, name = voice.split(":", 1)
+    if engine in _DEAD_ENGINES:
+        raise QuotaExhausted(f"{engine} quota used up earlier in this run")
+    wav = f"t{i}.wav"
+    src = work / (f"l{i}.pcm" if engine == "gemini" else f"l{i}.mp3")
+    last_error, bounds, in_args = None, [], ["-i", src.name]
+    for attempt in range(4):  # free voice services throttle bursts: back off and retry
         try:
-            bounds = asyncio.run(_tts(text, voice, mp3))
+            if engine == "gemini":
+                rate = _tts_gemini(text, name, src)
+                in_args = ["-f", "s16le", "-ar", str(rate), "-ac", "1", "-i", src.name]
+            else:
+                bounds = asyncio.run(_tts(text, name, src))
             break
+        except QuotaExhausted:
+            _DEAD_ENGINES.add(engine)
+            raise
         except Exception as e:  # noqa: BLE001
             last_error = e
             time.sleep(2 + 3 * attempt)
@@ -87,7 +134,7 @@ def _speak_line(text: str, voice: str, work: Path, i: int) -> tuple[float, list]
         bounds = [(o - start, d, w) for o, d, w in bounds]
     else:
         trim = SILENCE_TRIM
-    run(["ffmpeg", "-y", "-i", mp3.name, "-af", trim, "-ar", "44100", "-ac", "2", wav], work)
+    run(["ffmpeg", "-y", *in_args, "-af", trim, "-ar", "44100", "-ac", "2", wav], work)
     return duration(work / wav), bounds
 
 

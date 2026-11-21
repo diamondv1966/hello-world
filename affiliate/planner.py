@@ -82,6 +82,7 @@ def daily(day: date | None = None, count: int | None = None, render_media: bool 
         rng = random.Random(f"{day.isoformat()}-{p['id']}")
         style = learning.choose("style", render.STYLES, rng, weights)
         theme = learning.choose("theme", list(captions.THEMES), rng, weights)
+        broll_planned = learning.choose("broll", ["yes", "no"], rng, weights) == "yes"
         sec, voice_used, broll = "", "", 0
         if render_media:
             imgs = store.image_files(p)
@@ -99,7 +100,9 @@ def daily(day: date | None = None, count: int | None = None, render_media: bool 
                       "commission_thb": store.commission_per_order(p), "score": score(p),
                       "angle": c["angle"], "audience": c.get("audience", ""), "fb_format": c.get("fb_format"),
                       "fb_format_reason": c.get("fb_format_reason", ""), "voice": c["voice"], "voice_used": voice_used,
-                      "style": style, "theme": theme, "broll": broll, "video_sec": sec, "folder": folder.name})
+                      "style": style, "theme": theme, "broll": broll, "broll_planned": broll_planned,
+                      "image_1": str(store.image_files(p)[0]) if store.image_files(p) else "",
+                      "clips_dir": str(config.MEDIA / p["id"] / "clips"), "video_sec": sec, "folder": folder.name})
 
     # schedule: every item goes to Shopee Video, the top N by score also to the Facebook Page
     by_score = sorted(items, key=lambda i: i["score"], reverse=True)
@@ -119,7 +122,24 @@ def daily(day: date | None = None, count: int | None = None, render_media: bool 
     plan = {"date": day.isoformat(), "created": datetime.now().isoformat(timespec="seconds"), "items": items}
     (out / "plan.json").write_text(json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8")
     write_approval(out, plan)
+    write_broll_todo(out, plan)
     return plan
+
+
+def write_broll_todo(out, plan: dict) -> None:
+    """Work list for the producer: which clips should get AI B-roll today (about half, so results can be compared)."""
+    todo = [i for i in plan["items"] if i.get("broll_planned") and not i.get("broll")]
+    rows = [f"# B-roll ที่ต้องทำวันนี้ {plan['date']}", "",
+            "ทำตาม openmaus/FLOW_BROLL.md เฉพาะรายการนี้ (ชิ้นอื่นตั้งใจไม่ใส่ B-roll เพื่อเทียบผล)", ""]
+    if not todo:
+        rows.append("- ไม่มี")
+    for i in todo:
+        prompts = (out / i["folder"] / "broll_prompts.txt")
+        rows += [f"## #{i['no']} {i['name'][:50]}",
+                 f"- รูปอ้างอิง: {i['image_1']}",
+                 f"- prompt: {prompts}",
+                 f"- บันทึกคลิปที่: {i['clips_dir']}\\broll_1.mp4 (และ broll_2.mp4 ถ้าทำ 2 คลิป)", ""]
+    (out / "BROLL_TODO.md").write_text("\n".join(rows) + "\n", encoding="utf-8")
 
 
 def write_approval(out, plan: dict) -> None:

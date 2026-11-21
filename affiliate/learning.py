@@ -20,16 +20,16 @@ PLAYBOOK = DIR / "playbook.md"
 LESSONS = DIR / "lessons.jsonl"
 WEIGHTS = DIR / "weights.json"
 INSIGHTS = DIR / "insights.md"
-DIMENSIONS = ["angle", "style", "theme", "voice", "category"]
+DIMENSIONS = ["angle", "style", "theme", "voice", "broll", "category"]
 EXPLORE = 0.3          # share of choices that try something other than the current best
 MIN_POSTS = 3          # a variant needs this many measured posts before it can be called better
 PLAYBOOK_MAX_CHARS = 2500
 
 
 def variant_of(row: dict) -> dict:
-    """Read the variant tags stored in a tracker row (utm_content = angle, utm_campaign = style|theme|voice)."""
-    style, theme, voice = (row.get("utm_campaign", "") + "||").split("|")[:3]
-    return {"angle": row.get("utm_content", ""), "style": style, "theme": theme, "voice": voice,
+    """Read the variant tags stored in a tracker row (utm_content = angle, utm_campaign = style|theme|voice|broll)."""
+    style, theme, voice, broll = (row.get("utm_campaign", "") + "|||").split("|")[:4]
+    return {"angle": row.get("utm_content", ""), "style": style, "theme": theme, "voice": voice, "broll": broll,
             "category": row.get("category", "")}
 
 

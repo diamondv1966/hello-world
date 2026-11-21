@@ -8,6 +8,7 @@
   python aff.py posted 3 shopee_video [post_url]    mark item 3 posted (also: facebook)
   python aff.py stat <product_id> <platform> clicks=12 orders_direct=1 commission_net=35 [--date D]
   python aff.py report                 summary -> out/REPORT.md
+  python aff.py voicetest              one sample per voice in out/voicetest/ (compare Gemini vs Edge)
   python aff.py learn                  learn which angles/styles/themes/voices earn more -> data/learning/
   python aff.py lesson "..." --tag video --evidence <file>   record a lesson for the playbook
 """
@@ -124,7 +125,8 @@ def cmd_posted(a):
     p.setdefault("posted", {})[a.platform] = day
     store.save(p)
     ctype = "video" if a.platform == "shopee_video" else (item.get("facebook_type") or "image")
-    variant = f"{item.get('style', '')}|{item.get('theme', '')}|{item.get('voice_used') or item.get('voice', '')}"
+    broll = "yes" if item.get("broll") else "no"
+    variant = f"{item.get('style', '')}|{item.get('theme', '')}|{item.get('voice_used') or item.get('voice', '')}|{broll}"
     tracker.log_post(p, a.platform, ctype, a.url or "", item.get("video_sec", ""), day, variant)
     print(f"logged item {a.no} on {a.platform}")
 
@@ -133,6 +135,25 @@ def cmd_stat(a):
     values = dict(kv.split("=", 1) for kv in a.values)
     day = a.date or date.today().isoformat()
     print("updated" if tracker.set_stats(day, a.id, a.platform, values) else "row not found")
+
+
+def cmd_voicetest(a):
+    """One sample per voice in out/voicetest/ so the owner can hear the difference."""
+    from affiliate import render
+    folder = config.OUT / "voicetest"
+    folder.mkdir(parents=True, exist_ok=True)
+    text = a.text or "ใครล้างรถเองทุกอาทิตย์ ตัวนี้แรงดันสูง ฉีดคราบตามซอกล้อออกง่ายมาก วางพิกัดไว้ในตะกร้าแล้วนะ"
+    for gender, voices in config.VOICES.items():
+        for voice in voices:
+            safe = voice.replace(":", "_")
+            try:
+                render._speak_line(render.adapt_particles(text, gender), voice, folder, 0)
+                (folder / "t0.wav").replace(folder / f"{safe}.wav")
+                print(f"OK  {voice} -> {folder / (safe + '.wav')}")
+            except Exception as e:  # noqa: BLE001
+                print(f"FAIL {voice}: {str(e)[:120]}")
+    for f in folder.glob("l0.*"):
+        f.unlink()
 
 
 def cmd_learn(_):
@@ -206,6 +227,9 @@ def main():
     st.set_defaults(f=cmd_stat)
     sub.add_parser("report").set_defaults(f=cmd_report)
     sub.add_parser("learn").set_defaults(f=cmd_learn)
+    vt = sub.add_parser("voicetest")
+    vt.add_argument("--text")
+    vt.set_defaults(f=cmd_voicetest)
     le = sub.add_parser("lesson")
     le.add_argument("text")
     le.add_argument("--tag", default="general", help="video / copy / product / posting / general")

@@ -171,6 +171,48 @@ class Voice(unittest.TestCase):
         self.assertTrue(any("บทพูดรวม" in x for x in content.qc(PRODUCT, c)))
 
 
+class GeminiVoice(unittest.TestCase):
+    """Gemini TTS is tried first; when its quota runs out the whole run moves to the next voice."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.work = Path(self.tmp.name)
+        self.saved = (render._tts_gemini, render._tts)
+        render._DEAD_ENGINES.clear()
+
+    def tearDown(self):
+        render._tts_gemini, render._tts = self.saved
+        render._DEAD_ENGINES.clear()
+        self.tmp.cleanup()
+
+    def test_gemini_voice_used_and_trimmed(self):
+        import math
+        import struct
+
+        def fake(text, name, out):  # 0.3 s silence + 1 s tone + 0.5 s silence at 24 kHz
+            tone = [int(8000 * math.sin(2 * math.pi * 300 * n / 24000)) for n in range(24000)]
+            out.write_bytes(struct.pack(f"<{7200 + 24000 + 12000}h", *([0] * 7200 + tone + [0] * 12000)))
+            return 24000
+        render._tts_gemini = fake
+        durs, _, voice = render.synthesize([{"say": "ทดสอบ"}, {"say": "อีกบรรทัด"}], "female", self.work)
+        self.assertEqual(voice, "gemini:Kore")
+        self.assertTrue(all(0.9 < d < 1.2 for d in durs), durs)  # silence cut off
+
+    def test_quota_moves_on_and_remembers(self):
+        def quota(*_):
+            raise render.QuotaExhausted("429")
+
+        async def edge_down(*_):
+            raise RuntimeError("offline")
+        render._tts_gemini, render._tts = quota, edge_down
+        render.time.sleep, saved_sleep = (lambda s: None), render.time.sleep
+        try:
+            self.assertIsNone(render.synthesize([{"say": "ทดสอบ"}], "male", self.work)[2])
+        finally:
+            render.time.sleep = saved_sleep
+        self.assertIn("gemini", render._DEAD_ENGINES)
+
+
 class ShotPlan(unittest.TestCase):
     def test_broll_only_between_real_photos(self):
         shots = render._shot_plan([2, 2, 2, 2], "framed", 3, 1, random.Random(0))

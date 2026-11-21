@@ -30,7 +30,15 @@ FB_SLOTS = ["12:05", "18:30", "20:05", "21:10"]
 
 # --- Content -----------------------------------------------------------------
 GEMINI_MODEL_DEFAULT = "gemini-2.5-flash"
-VOICES = {"female": ["th-TH-PremwadeeNeural", "th-TH-AcharaNeural"], "male": ["th-TH-NiwatNeural"]}  # fallbacks in order
+# Voices in fallback order, "engine:name". gemini = Gemini TTS (natural, uses the Gemini key, has a daily quota);
+# edge = Microsoft Edge voices (free, older robotic sound). When Gemini's quota runs out the run moves to edge.
+VOICES = {
+    "female": ["gemini:Kore", "edge:th-TH-PremwadeeNeural", "edge:th-TH-AcharaNeural"],
+    "male": ["gemini:Puck", "edge:th-TH-NiwatNeural"],
+}
+GEMINI_TTS_MODEL = "gemini-2.5-flash-preview-tts"
+GEMINI_TTS_STYLE = ("Read this Thai line aloud in natural, warm, upbeat Thai, like a friendly person recommending "
+                    "a product in a short video, at a brisk conversational pace. Read only the Thai text:")
 TTS_RATE = "+10%"         # short-form voices run a little fast
 MIN_VIDEO_SEC = 15.0      # target length; reached with a longer script, never with silence
 LINE_GAP = 0.12           # seconds of breath between spoken lines
