@@ -1,0 +1,7 @@
+.env
+media/
+out/
+data/inbox/done/
+__pycache__/
+*.pyc
+.venv/
