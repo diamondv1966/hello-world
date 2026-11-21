@@ -84,12 +84,20 @@ def image_files(p: dict) -> list[Path]:
     return sorted(f for f in folder.iterdir() if f.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"})
 
 
+def commission_per_order(p: dict) -> float:
+    """Baht earned on one direct order: base rate (capped) + Extra Comm, on the listed price."""
+    price = float(p.get("price") or 0)
+    base = min(price * config.BASE_RATE / 100, config.BASE_CAP_THB)
+    extra = p.get("extra_rate")
+    extra = config.EXTRA_UNKNOWN if extra is None else extra
+    return round(base + price * extra / 100, 2)
+
+
 def status_of(p: dict) -> str:
     """skip = Extra Comm known and below the minimum; needs_info = scout must fill data; ready."""
     if p.get("skip_reason"):
         return "skip"
-    extra = p.get("extra_rate")
-    if extra is not None and extra < config.MIN_EXTRA_COMM:
+    if p.get("extra_rate") is not None and commission_per_order(p) < config.MIN_COMMISSION_THB:
         return "skip"
     missing = missing_info(p)
     return "needs_info" if missing else "ready"

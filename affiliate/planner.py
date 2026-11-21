@@ -8,11 +8,7 @@ from . import config, content, render, store
 
 
 def expected_commission(p: dict) -> float:
-    price = float(p.get("price") or 0)
-    base = min(price * config.BASE_RATE / 100, config.BASE_CAP_THB)
-    extra = p.get("extra_rate")
-    extra_thb = price * (extra if extra is not None else config.MIN_EXTRA_COMM / 2) / 100
-    return base + extra_thb
+    return store.commission_per_order(p)
 
 
 def score(p: dict) -> float:
@@ -89,7 +85,8 @@ def daily(day: date | None = None, count: int | None = None, render_media: bool 
                 continue
             print(f"   video {sec}s + image ok")
         items.append({"no": n, "id": p["id"], "name": p["name"], "url": p["url"], "category": p.get("category"),
-                      "price": p.get("price"), "extra_rate": p.get("extra_rate"), "score": score(p),
+                      "price": p.get("price"), "extra_rate": p.get("extra_rate"),
+                      "commission_thb": store.commission_per_order(p), "score": score(p),
                       "angle": c["angle"], "audience": c.get("audience", ""), "fb_format": c.get("fb_format"),
                       "fb_format_reason": c.get("fb_format_reason", ""), "voice": c["voice"], "video_sec": sec, "folder": folder.name})
 
@@ -117,9 +114,10 @@ def daily(day: date | None = None, count: int | None = None, render_media: bool 
 def write_approval(out, plan: dict) -> None:
     rows = [f"# ชุดอนุมัติประจำวัน {plan['date']}", "",
             "ตอบในแอป Maus ว่า `อนุมัติทั้งหมด` หรือ `อนุมัติ 1,2,5` หรือ `ไม่อนุมัติ 3 เพราะ ...`", "",
-            "| # | สินค้า | Extra Comm | กลุ่มลูกค้า | มุมขาย | Shopee Video | Facebook |", "|---|---|---|---|---|---|---|"]
+            "| # | สินค้า | ค่าคอม/ออเดอร์ | กลุ่มลูกค้า | มุมขาย | Shopee Video | Facebook |", "|---|---|---|---|---|---|---|"]
     for i in plan["items"]:
-        extra = f"{i['extra_rate']}%" if i["extra_rate"] is not None else "ยังไม่ยืนยัน"
+        extra = (f"฿{i['commission_thb']:.0f} ({i['extra_rate']}%)" if i["extra_rate"] is not None
+                 else f"~฿{i['commission_thb']:.0f} (ยังไม่ยืนยัน)")
         fb = f"{i['facebook_time']} ({i['facebook_type']})" if i["facebook_time"] else "-"
         rows.append(f"| {i['no']} | {i['name'][:38]} | {extra} | {i.get('audience', '')[:40]} | {i['angle']} | "
                     f"{i['shopee_time']} | {fb} |")

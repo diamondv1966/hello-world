@@ -14,7 +14,9 @@ OUT = ROOT / "out"                    # daily packets: videos, images, captions 
 PROMPT = ROOT / "prompts" / "content_prompt.md"
 
 # --- Product selection -------------------------------------------------------
-MIN_EXTRA_COMM = 8.0      # % ; products whose Extra Comm is known and lower are skipped
+MIN_COMMISSION_THB = 20.0 # baht per order: base + Extra Comm on the price; cheaper wins are skipped
+                          # (a 5% Extra Comm on a 3,300 baht shoe pays ~231 baht; 8% on a 10 baht item pays ~1 baht)
+EXTRA_UNKNOWN = 4.0       # % assumed for ranking while the scout has not read the real Extra Comm
 BASE_RATE = 2.0           # % Shopee TH base commission (direct order)
 BASE_CAP_THB = 225        # base commission cap per order
 ITEMS_PER_DAY = 5         # Shopee Video clips per day: start at 5, raise to 10 after 3 clean days

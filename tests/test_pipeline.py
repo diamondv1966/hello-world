@@ -70,11 +70,14 @@ class Parsing(unittest.TestCase):
         self.assertEqual(store.full_size_url("https://x/file/abc_tn?x=1"), "https://x/file/abc?x=1")
         self.assertEqual(store.full_size_url("https://x/file/abc_tnx"), "https://x/file/abc_tnx")
 
-    def test_status(self):
-        p = {"id": "zz_none", "extra_rate": 5, "features": ["x"]}
-        self.assertEqual(store.status_of(p), "skip")
-        p["extra_rate"] = 9
-        self.assertEqual(store.status_of(p), "needs_info")  # no images yet
+    def test_status_uses_baht_per_order(self):
+        cheap = {"id": "zz_none", "price": 10, "extra_rate": 8, "features": ["x"]}
+        self.assertEqual(store.status_of(cheap), "skip")              # ~1 baht per order
+        shoe = {"id": "zz_none", "price": 3300, "extra_rate": 5, "features": ["x"]}
+        self.assertAlmostEqual(store.commission_per_order(shoe), 231)  # 66 base + 165 extra
+        self.assertEqual(store.status_of(shoe), "needs_info")         # worth it; only photos missing
+        big = {"price": 20000, "extra_rate": 0}
+        self.assertEqual(store.commission_per_order(big), 225)        # base capped
 
 
 class Captions(unittest.TestCase):
