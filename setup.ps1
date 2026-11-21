@@ -19,8 +19,9 @@ $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [En
 python -m pip install --upgrade edge-tts pythainlp
 
 if (-not (Test-Path .env)) {
-    $key = Read-Host "Paste your GEMINI_API_KEY (same key as AURIX .env.local; free at aistudio.google.com)"
-    "GEMINI_API_KEY=$key`nGEMINI_MODEL=gemini-2.5-flash" | Out-File -Encoding utf8 .env
+    # The owner pastes the key into .env by hand; a bot must never type or see it.
+    "GEMINI_API_KEY=`nGEMINI_MODEL=gemini-2.5-flash" | Out-File -Encoding utf8 .env
+    Write-Host "OWNER: open .env in Notepad and paste your Gemini key after GEMINI_API_KEY= (same key as AURIX)"
 }
 
 python -m unittest tests/test_pipeline.py

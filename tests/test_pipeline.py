@@ -11,7 +11,8 @@ PRODUCT = {"id": "x", "name": "เครื่องฉีดน้ำ อัน
 
 def good_copy() -> dict:
     return {
-        "angle": "problem_solution", "voice": "male",
+        "angle": "problem_solution", "audience": "เจ้าของบ้านที่ล้างพื้นเอง", "fb_format": "video",
+        "fb_format_reason": "ต้องเห็นแรงน้ำตอนฉีด", "voice": "male",
         "video": {"title": "ตะไคร่หน้าบ้าน\nขัดยังไงก็ไม่ออก", "lines": [
             {"say": "พื้นหน้าบ้านเขียวตะไคร่ทุกหน้าฝน ขัดเท่าไหร่ก็ไม่หมด"},
             {"say": "ตัวนี้แรงดัน 120 บาร์ สายยาว 8 เมตร"},

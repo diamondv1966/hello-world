@@ -90,7 +90,8 @@ def daily(day: date | None = None, count: int | None = None, render_media: bool 
             print(f"   video {sec}s + image ok")
         items.append({"no": n, "id": p["id"], "name": p["name"], "url": p["url"], "category": p.get("category"),
                       "price": p.get("price"), "extra_rate": p.get("extra_rate"), "score": score(p),
-                      "angle": c["angle"], "voice": c["voice"], "video_sec": sec, "folder": folder.name})
+                      "angle": c["angle"], "audience": c.get("audience", ""), "fb_format": c.get("fb_format"),
+                      "fb_format_reason": c.get("fb_format_reason", ""), "voice": c["voice"], "video_sec": sec, "folder": folder.name})
 
     # schedule: every item goes to Shopee Video, the top N by score also to the Facebook Page
     by_score = sorted(items, key=lambda i: i["score"], reverse=True)
@@ -103,7 +104,7 @@ def daily(day: date | None = None, count: int | None = None, render_media: bool 
         i["facebook_time"] = i["facebook_type"] = None
         if i["id"] in fb_ids:
             i["facebook_time"] = next(fb_slots, None)
-            i["facebook_type"] = "image" if fb_count % 2 == 0 else "video"
+            i["facebook_type"] = i.get("fb_format") or ("image" if fb_count % 2 == 0 else "video")
             fb_count += 1
         i["approved"] = None
         i["posted"] = {}
@@ -116,10 +117,14 @@ def daily(day: date | None = None, count: int | None = None, render_media: bool 
 def write_approval(out, plan: dict) -> None:
     rows = [f"# ชุดอนุมัติประจำวัน {plan['date']}", "",
             "ตอบในแอป Maus ว่า `อนุมัติทั้งหมด` หรือ `อนุมัติ 1,2,5` หรือ `ไม่อนุมัติ 3 เพราะ ...`", "",
-            "| # | สินค้า | Extra Comm | มุมขาย | Shopee Video | Facebook |", "|---|---|---|---|---|---|"]
+            "| # | สินค้า | Extra Comm | กลุ่มลูกค้า | มุมขาย | Shopee Video | Facebook |", "|---|---|---|---|---|---|---|"]
     for i in plan["items"]:
         extra = f"{i['extra_rate']}%" if i["extra_rate"] is not None else "ยังไม่ยืนยัน"
         fb = f"{i['facebook_time']} ({i['facebook_type']})" if i["facebook_time"] else "-"
-        rows.append(f"| {i['no']} | {i['name'][:38]} | {extra} | {i['angle']} | {i['shopee_time']} | {fb} |")
+        rows.append(f"| {i['no']} | {i['name'][:38]} | {extra} | {i.get('audience', '')[:40]} | {i['angle']} | "
+                    f"{i['shopee_time']} | {fb} |")
+    fb_notes = [f"- #{i['no']} {i['facebook_type']}: {i.get('fb_format_reason', '')}" for i in plan["items"] if i["facebook_time"]]
+    if fb_notes:
+        rows += ["", "เหตุผลที่เลือกรูปแบบโพสต์ Facebook", *fb_notes]
     rows += ["", "แต่ละโฟลเดอร์มี video.mp4, image.jpg, shopee_caption.txt, fb_post.txt, fb_first_comment.txt, link.txt"]
     (out / "APPROVAL.md").write_text("\n".join(rows) + "\n", encoding="utf-8")

@@ -16,6 +16,9 @@ SCHEMA = {
     "type": "OBJECT",
     "properties": {
         "angle": {"type": "STRING", "enum": ANGLES},
+        "audience": S,
+        "fb_format": {"type": "STRING", "enum": ["video", "image"]},
+        "fb_format_reason": S,
         "voice": {"type": "STRING", "enum": ["female", "male"]},
         "video": {
             "type": "OBJECT",
@@ -36,7 +39,7 @@ SCHEMA = {
         "hashtags": {"type": "ARRAY", "items": S},
         "facts_used": {"type": "ARRAY", "items": S},
     },
-    "required": ["angle", "voice", "video", "keywords", "image_headline", "shopee_caption", "fb_post",
+    "required": ["angle", "audience", "fb_format", "fb_format_reason", "voice", "video", "keywords", "image_headline", "shopee_caption", "fb_post",
                  "fb_first_comment", "hashtags", "facts_used"],
 }
 
