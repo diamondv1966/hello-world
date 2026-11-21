@@ -5,3 +5,4 @@ data/inbox/done/
 __pycache__/
 *.pyc
 .venv/
+samples/
