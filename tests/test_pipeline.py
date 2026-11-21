@@ -17,10 +17,11 @@ def good_copy() -> dict:
         "angle": "problem_solution", "audience": "เจ้าของบ้านที่ล้างพื้นเอง", "fb_format": "video",
         "fb_format_reason": "ต้องเห็นแรงน้ำตอนฉีด", "voice": "male",
         "video": {"title": "ตะไคร่หน้าบ้าน\nขัดยังไงก็ไม่ออก", "lines": [
-            {"say": "พื้นหน้าบ้านเขียวตะไคร่ทุกหน้าฝน ขัดเท่าไหร่ก็ไม่หมด"},
-            {"say": "ตัวนี้แรงดัน 120 บาร์ สายยาว 8 เมตร"},
-            {"say": "คนรีวิวบอกว่าฉีดคราบที่พื้นออกง่าย เสียงไม่ดังมาก"},
-            {"say": "วางพิกัดไว้ในตะกร้านะ เผื่อใครหาอยู่"},
+            {"say": "พื้นหน้าบ้านเขียวตะไคร่ทุกหน้าฝน ขัดเท่าไหร่ก็ไม่หมดสักที"},
+            {"say": "ตัวนี้แรงดัน 120 บาร์ สายยาว 8 เมตร เดินฉีดได้ทั่วลานจอดรถ"},
+            {"say": "คนรีวิวบอกว่าฉีดคราบที่พื้นออกง่าย เสียงไม่ดังมาก ใช้ตอนเช้าได้สบาย"},
+            {"say": "ล้างรถเสร็จแล้วฉีดพื้นต่อได้เลย ไม่ต้องเปลี่ยนอุปกรณ์"},
+            {"say": "วางพิกัดไว้ในตะกร้านะ เผื่อมีคนหาอยู่พอดี"},
         ]},
         "keywords": ["120 บาร์", "ออกง่าย"],
         "image_headline": "ตะไคร่หน้าบ้าน\nจบง่ายขึ้น",
@@ -153,6 +154,21 @@ class Learning(unittest.TestCase):
     def test_lesson_is_appended(self):
         learning.add_lesson("เว้นช่วงเงียบน้อยลง", "video", "out/x/video.mp4", "owner")
         self.assertIn("เว้นช่วงเงียบ", learning.LESSONS.read_text(encoding="utf-8"))
+
+
+class Voice(unittest.TestCase):
+    def test_particles_follow_the_voice(self):
+        self.assertEqual(render.adapt_particles("ใส่สบายมากนะคะ", "male"), "ใส่สบายมากนะครับ")
+        self.assertEqual(render.adapt_particles("กดตะกร้าได้เลยค่ะ", "male"), "กดตะกร้าได้เลยครับ")
+        self.assertEqual(render.adapt_particles("ดีมากครับ", "female"), "ดีมากค่ะ")
+        self.assertEqual(render.adapt_particles("คะแนนรีวิวดี", "male"), "คะแนนรีวิวดี")  # not an ending
+
+    def test_short_script_fails_qc(self):
+        c = good_copy()
+        c["video"]["lines"] = c["video"]["lines"][:4]
+        for line in c["video"]["lines"]:
+            line["say"] = line["say"][:20]
+        self.assertTrue(any("บทพูดรวม" in x for x in content.qc(PRODUCT, c)))
 
 
 class ShotPlan(unittest.TestCase):

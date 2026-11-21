@@ -126,8 +126,8 @@ def qc(p: dict, c: dict) -> list[str]:
     if not 4 <= len(lines) <= 7:
         problems.append(f"video.lines ต้องมี 4-6 บรรทัด (ได้ {len(lines)})")
     spoken = sum(visible_len(l.get("say", "")) for l in lines)
-    if not 100 <= spoken <= 260:
-        problems.append(f"บทพูดรวม {spoken} ตัวอักษร ต้องอยู่ระหว่าง 90-200")
+    if not 150 <= spoken <= 280:
+        problems.append(f"บทพูดรวม {spoken} ตัวอักษร ต้องอยู่ระหว่าง 160-260 (ต่ำกว่านี้คลิปจะสั้นกว่า 15 วินาที) ให้เพิ่มประโยคเล่าเรื่องหรือรายละเอียดจริง")
     for i, l in enumerate(lines):
         say = l.get("say", "")
         if EMOJI.search(say):
@@ -163,7 +163,7 @@ def generate(p: dict, force: bool = False) -> dict:
     if p.get("content") and p["content"].get("qc") == "pass" and not force:
         return p
     feedback = None
-    for attempt in range(2):
+    for attempt in range(3):
         c = gemini(build_prompt(p, feedback))
         c["hashtags"] = [h if h.startswith("#") else f"#{h}" for h in c.get("hashtags", [])][:6]
         problems = qc(p, c)

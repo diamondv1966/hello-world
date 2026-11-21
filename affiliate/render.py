@@ -13,10 +13,13 @@ Video recipe (short-form best practice, see docs/PLAN.md "การผลิต�
 Needs ffmpeg/ffprobe on PATH. If every voice fails the clip is rendered silent with captions.
 """
 import asyncio
+import copy
 import json
+import re
 import random
 import shutil
 import subprocess
+import time
 from pathlib import Path
 
 from . import captions, config
@@ -68,12 +71,13 @@ def _speak_line(text: str, voice: str, work: Path, i: int) -> tuple[float, list]
     """Synthesize one line and cut the silence around the speech. Returns (seconds, word boundaries)."""
     mp3, wav = work / f"l{i}.mp3", f"t{i}.wav"
     last_error = None
-    for _ in range(2):  # one retry for network hiccups
+    for attempt in range(4):  # the free voice service throttles bursts: back off and retry
         try:
             bounds = asyncio.run(_tts(text, voice, mp3))
             break
         except Exception as e:  # noqa: BLE001
             last_error = e
+            time.sleep(2 + 3 * attempt)
     else:
         raise RuntimeError(f"TTS {voice}: {last_error}")
     if bounds:
@@ -87,11 +91,26 @@ def _speak_line(text: str, voice: str, work: Path, i: int) -> tuple[float, list]
     return duration(work / wav), bounds
 
 
+def voice_gender(voice: str) -> str:
+    return next((g for g, vs in config.VOICES.items() if voice in vs), "female")
+
+
+def adapt_particles(text: str, gender: str) -> str:
+    """Polite endings must match the voice: a male voice never says ค่ะ/คะ, a female voice never says ครับ."""
+    if gender == "male":
+        text = re.sub(r"(นะ)?ค[่]?ะ(?=[\s.!?…]|$)", lambda m: (m.group(1) or "") + "ครับ", text)
+        return text.replace("ดิฉัน", "ผม")
+    return re.sub(r"ครับ(?=[\s.!?…]|$)", "ค่ะ", text)
+
+
 def synthesize(lines: list[dict], gender: str, work: Path) -> tuple[list[float], list[list], str | None]:
-    """All lines in one voice. Tries the chosen gender's voices, then the other gender's."""
+    """All lines in one voice. Tries the chosen gender's voices, then the other gender's.
+    Edits lines[i]["say"] in place when the voice changes gender, so captions match what is spoken."""
     order = config.VOICES.get(gender, []) + [v for g, vs in config.VOICES.items() if g != gender for v in vs]
     for voice in order:
         try:
+            for line in lines:
+                line["say"] = adapt_particles(line["say"], voice_gender(voice))
             out = [_speak_line(l["say"].strip(), voice, work, i) for i, l in enumerate(lines)]
             return [d for d, _ in out], [b for _, b in out], voice
         except Exception as e:  # noqa: BLE001
@@ -159,7 +178,7 @@ def make_video(content: dict, images: list[Path], out_mp4: Path, style: str = "f
     work = out_mp4.parent / "_work"
     work.mkdir(parents=True, exist_ok=True)
     rng = random.Random(seed)
-    lines = content["video"]["lines"]
+    lines = copy.deepcopy(content["video"]["lines"])  # particles may change with the voice; keep the saved copy intact
 
     # 1) voice: trimmed per line, short breath between lines, small tail at the end
     durs, bounds_all, voice = synthesize(lines, content.get("voice", "female"), work)
